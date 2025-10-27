@@ -1,0 +1,6 @@
+torch==2.0.0
+ultralytics==8.0.0
+opencv-python==4.7.0.72
+numpy==1.24.2
+gensim==4.3.0
+Pillow==9.4.0
