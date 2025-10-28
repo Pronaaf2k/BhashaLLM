@@ -18,11 +18,6 @@ An **offline, on-device** Bengali handwritten text recognition system for Androi
 - **⚡ Real-time Processing**: Optimized for mobile devices with 4-8GB RAM
 - **📊 High Accuracy**: 93.87% grapheme root recognition, 98.22% diacritic recognition
 
-📸 Demo
-
-| Detection & Recognition | Contextual Correction | Final Output |
-|------------------------|---------------------|--------------|
-| ![Detection](https://via.placeholder.com/300x200?text=Character+Detection) | ![Correction](https://via.placeholder.com/300x200?text=LLM+Correction) | ![Output](https://via.placeholder.com/300x200?text=Final+Text) |
 
  🏗️ Architecture
 
