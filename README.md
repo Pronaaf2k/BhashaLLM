@@ -1,5 +1,5 @@
-```markdown
-# BanglaHandwritingOCR-Android
+
+BanglaHandwritingOCR-Android
 
 [![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)](https://www.tensorflow.org/lite)
@@ -9,7 +9,7 @@ An **offline, on-device** Bengali handwritten text recognition system for Androi
 
 > 🔬 **Research-Based**: Built upon the hybrid OCR approach from "*A hybrid approach to Bangla handwritten OCR: combining YOLO and an advanced CNN*" (Discover Artificial Intelligence, 2025)
 
-## 🚀 Features
+🚀 Features
 
 - **📱 Fully Offline**: No internet connection required after installation
 - **🔍 Hybrid OCR Pipeline**: YOLOv8 + EfficientNet-B4 for accurate character detection and recognition
@@ -18,13 +18,13 @@ An **offline, on-device** Bengali handwritten text recognition system for Androi
 - **⚡ Real-time Processing**: Optimized for mobile devices with 4-8GB RAM
 - **📊 High Accuracy**: 93.87% grapheme root recognition, 98.22% diacritic recognition
 
-## 📸 Demo
+📸 Demo
 
 | Detection & Recognition | Contextual Correction | Final Output |
 |------------------------|---------------------|--------------|
 | ![Detection](https://via.placeholder.com/300x200?text=Character+Detection) | ![Correction](https://via.placeholder.com/300x200?text=LLM+Correction) | ![Output](https://via.placeholder.com/300x200?text=Final+Text) |
 
-## 🏗️ Architecture
+ 🏗️ Architecture
 
 ```
 Image Capture → Preprocessing → YOLOv8 Detection → Character Isolation → 
