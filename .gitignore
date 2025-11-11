@@ -15,7 +15,24 @@ env/
 # Data and Models
 *.pt
 *.pkl
+*.pickle
 *.h5
 *.onnx
-/models/*
-/data/*
+*.pth
+*.npy
+/models/
+/data/
+
+# Large model files that exceed GitHub's file size limits
+# Recognition model files
+banglaWrittenWordOCR-main/recongnition_model/char_level_trained_model_128x224_shoroborno_again.pth
+
+# Spelling correction model files
+banglaWrittenWordOCR-main/spellingCorrection_model/bnword2vec.txt
+banglaWrittenWordOCR-main/spellingCorrection_model/results/pretrained_weights.pickle
+banglaWrittenWordOCR-main/spellingCorrection_model/results/word2vec_new.model.trainables.syn1neg.npy
+banglaWrittenWordOCR-main/spellingCorrection_model/results/word2vec_new.model.wv.vectors.npy
+
+# Additional patterns to catch similar large files
+*.txt
+results/
