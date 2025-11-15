@@ -36,3 +36,4 @@ banglaWrittenWordOCR-main/spellingCorrection_model/results/word2vec_new.model.wv
 # Additional patterns to catch similar large files
 *.txt
 results/
+banglaWrittenWordOCR-main/detection_model/.env
