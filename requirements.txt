@@ -1,6 +1,16 @@
-torch==2.0.0
-ultralytics==8.0.0  # For YOLOv8
-opencv-python==4.7.0.72
-numpy==1.24.2
-gensim==4.3.0       # For Word2Vec
-Pillow==9.4.0
+# Python 3.8 compatible requirements
+# NOTE: PyTorch should be installed separately for CUDA support
+# For CUDA 11.8: pip install torch==2.0.1 torchvision==0.15.2 --index-url https://download.pytorch.org/whl/cu118
+# For CPU-only: pip install torch==2.0.1 torchvision==0.15.2 --index-url https://download.pytorch.org/whl/cpu
+
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+pillow==10.0.0
+opencv-python==4.8.1.78
+numpy==1.24.3
+pandas==2.0.3
+google-generativeai==0.3.1
+pretrainedmodels==0.7.4
+ultralytics==8.0.0
+gensim==4.3.2

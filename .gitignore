@@ -6,6 +6,10 @@ __pycache__/
 # OS Files
 .DS_Store
 .ipynb_checkpoints
+nul
+# Windows reserved names
+nul.txt
+nul
 
 # Virtual environment
 .venv/

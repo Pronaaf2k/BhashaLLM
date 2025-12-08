@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: bhashallm
+    env: python
+    buildCommand: pip install -r requirements.txt && pip install torch==2.0.1 torchvision==0.15.2 --index-url https://download.pytorch.org/whl/cpu
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT --workers 2
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.8.0
+
