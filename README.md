@@ -109,8 +109,8 @@ A FastAPI-based backend API for Bengali handwritten text recognition using your 
 ## API Documentation
 
 Once deployed, visit:
-- **Swagger UI**: `https://your-app-name.onrender.com/docs`
-- **ReDoc**: `https://your-app-name.onrender.com/redoc`
+- **Swagger UI**: `https://onrender.com/docs`
+- **ReDoc**: `https://onrender.com/redoc`
 
 See [API_DOCS.md](API_DOCS.md) for detailed API documentation.
 
