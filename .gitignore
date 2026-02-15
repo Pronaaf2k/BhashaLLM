@@ -1,43 +1,55 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
-*.class
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# OS Files
-.DS_Store
-.ipynb_checkpoints
-nul
-# Windows reserved names
-nul.txt
-nul
-
-# Virtual environment
-.venv/
+# Virtual Environments
 venv/
 env/
+ENV/
+env.bak/
+venv.bak/
 
-# Data and Models
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+
+# Project specific heavy files
+data/
+models/
+checkpoints/
+output/
+wandb/
+
+# Large files by extension (just in case they are outside ignored dirs)
 *.pt
-*.pkl
-*.pickle
-*.h5
-*.onnx
 *.pth
-*.npy
-/models/
-/data/
-
-# Large model files that exceed GitHub's file size limits
-# Recognition model files
-banglaWrittenWordOCR-main/recongnition_model/char_level_trained_model_128x224_shoroborno_again.pth
-
-# Spelling correction model files
-banglaWrittenWordOCR-main/spellingCorrection_model/bnword2vec.txt
-banglaWrittenWordOCR-main/spellingCorrection_model/results/pretrained_weights.pickle
-banglaWrittenWordOCR-main/spellingCorrection_model/results/word2vec_new.model.trainables.syn1neg.npy
-banglaWrittenWordOCR-main/spellingCorrection_model/results/word2vec_new.model.wv.vectors.npy
-
-# Additional patterns to catch similar large files
-*.txt
-results/
-banglaWrittenWordOCR-main/detection_model/.env
+*.bin
+*.onnx
+*.safetensors
+*.ckpt
