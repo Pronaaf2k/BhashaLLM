@@ -1,0 +1,29 @@
+name: bhashallm
+channels:
+  - pytorch
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.12
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+  - pip
+  - pip:
+    - transformers
+    - peft
+    - accelerate
+    - bitsandbytes
+    - datasets
+    - pandas
+    - pillow
+    - sentencepiece
+    - protobuf
+    - scipy
+    - scikit-learn
+    - tqdm
+    - paddlepaddle-gpu
+    - paddleocr
+    - jiwer
+    - qwen_vl_utils
