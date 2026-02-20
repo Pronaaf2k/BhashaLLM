@@ -36,10 +36,10 @@ def main():
     parser.add_argument("--output_dir", type=str, default=str(DEFAULT_OUTPUT_DIR))
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--grad_accum", type=int, default=16)
-    parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--lr", type=float, default=2e-4)
+    parser.add_argument("--epochs", type=int, default=5)
+    parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--max_steps", type=int, default=-1, help="If > 0: set total number of training steps to perform. Overrides num_train_epochs.")
-    parser.add_argument("--save_steps", type=int, default=500, help="Save checkpoint every X steps.")
+    parser.add_argument("--save_steps", type=int, default=100, help="Save checkpoint every X steps.")
     parser.add_argument("--logging_steps", type=int, default=10, help="Log every X steps.")
     args = parser.parse_args()
     
@@ -95,7 +95,7 @@ def main():
     # Lora Config
     peft_config = LoraConfig(
         lora_alpha=32,
-        lora_dropout=0.05,
+        lora_dropout=0.1,  # Increased for regularization
         r=16,
         bias="none",
         target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
@@ -115,7 +115,8 @@ def main():
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.grad_accum,
         learning_rate=args.lr,
-        weight_decay=0.01,
+        weight_decay=0.05,  # Increased for regularization
+
         logging_steps=args.logging_steps,
         eval_strategy="no",
         save_steps=args.save_steps,

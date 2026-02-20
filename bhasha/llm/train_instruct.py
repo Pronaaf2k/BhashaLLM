@@ -13,9 +13,12 @@ from datasets import load_dataset
 from trl import SFTTrainer, SFTConfig
 
 # Configuration
-OUTPUT_DIR = "/home/node/.openclaw/workspace/BhashaLLM/models/instruct_adapters"
-LOG_DIR = "/home/node/.openclaw/workspace/BhashaLLM/logs"
-DATA_PATH = "/home/node/.openclaw/workspace/BhashaLLM/data/processed/synthetic_grading.jsonl"
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+OUTPUT_DIR = str(BASE_DIR / "models" / "instruct_adapters")
+LOG_DIR = str(BASE_DIR / "logs")
+DATA_PATH = str(BASE_DIR / "data" / "processed" / "synthetic_grading.jsonl")
 
 def train(args):
     print(f"Loading base model: {args.base_model}")

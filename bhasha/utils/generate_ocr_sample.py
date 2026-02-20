@@ -5,7 +5,9 @@ def create_image():
     # Settings
     text = "আমি বাংলায় গান গাই\nআমি বাংলার গান গাই\n১৯৫২ সালের ভাষা আন্দোলন"
     font_path = "/usr/share/fonts/truetype/noto/NotoSansBengali-Regular.ttf"
-    output_path = "/home/node/.openclaw/workspace/BhashaLLM/data/raw/sample_ocr.jpg"
+    from pathlib import Path
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    output_path = str(BASE_DIR / "data" / "raw" / "sample_ocr.jpg")
     
     # Create white image
     img = Image.new('RGB', (800, 400), color=(255, 255, 255))

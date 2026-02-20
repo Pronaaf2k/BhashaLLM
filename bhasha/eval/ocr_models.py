@@ -243,9 +243,12 @@ The fine-tuned model shows **{(finetuned_acc - baseline_acc):.2%}** improvement 
 
 def main():
     model_id = "swapnillo/Bangla-OCR-SFT"
-    adapter_path = "/home/node/.openclaw/workspace/BhashaLLM/models/ocr_adapters/banglawriting_adapter"
-    test_data_path = "/home/node/.openclaw/workspace/BhashaLLM/data/processed/banglawriting/test.jsonl"
-    report_path = "/home/node/.openclaw/workspace/BhashaLLM/ocr_benchmark_report.md"
+    from pathlib import Path
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    
+    adapter_path = str(BASE_DIR / "models" / "ocr_adapters" / "banglawriting_adapter")
+    test_data_path = str(BASE_DIR / "data" / "processed" / "banglawriting" / "test.jsonl")
+    report_path = str(BASE_DIR / "ocr_benchmark_report.md")
     
     # Load test data
     print("Loading test data...")

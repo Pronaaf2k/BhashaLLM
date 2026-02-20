@@ -235,9 +235,12 @@ This report compares three OCR approaches for Bangla handwritten character recog
 
 def main():
     model_id = "swapnillo/Bangla-OCR-SFT"
-    adapter_path = "/home/node/.openclaw/workspace/BhashaLLM/models/ocr_adapters/final_ocr_adapter"
-    test_data_path = "/home/node/.openclaw/workspace/BhashaLLM/data/processed/ocr_training_data.jsonl"
-    report_path = "/home/node/.openclaw/workspace/BhashaLLM/report/COMPREHENSIVE_OCR_EVALUATION.md"
+    from pathlib import Path
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    
+    adapter_path = str(BASE_DIR / "models" / "ocr_adapters" / "final_ocr_adapter")
+    test_data_path = str(BASE_DIR / "data" / "processed" / "ocr_training_data.jsonl")
+    report_path = str(BASE_DIR / "report" / "COMPREHENSIVE_OCR_EVALUATION.md")
     
     # Load test data
     print("Loading test data...")

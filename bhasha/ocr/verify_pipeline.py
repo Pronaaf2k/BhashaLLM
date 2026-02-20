@@ -2,7 +2,9 @@ from paddleocr import PaddleOCR
 import os
 
 def test_ocr():
-    image_path = "/home/node/.openclaw/workspace/BhashaLLM/data/raw/sample_ocr.jpg"
+    from pathlib import Path
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    image_path = str(BASE_DIR / "data" / "raw" / "sample_ocr.jpg")
     if not os.path.exists(image_path):
         print(f"Image not found: {image_path}")
         return

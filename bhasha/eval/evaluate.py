@@ -6,7 +6,10 @@ from tqdm import tqdm
 from peft import PeftModel
 
 # Configuration
-TEST_FILE = "/home/node/.openclaw/workspace/BhashaLLM/data/processed/test.txt"
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+TEST_FILE = str(BASE_DIR / "data" / "processed" / "test.txt")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 def compute_perplexity(model, tokenizer, text_path, max_length=1024, stride=512):
