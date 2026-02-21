@@ -18,6 +18,30 @@ The dataset was randomly split internally using `datasets` into:
 
 The output was saved to `data/processed/kaggle_instruct.jsonl`.
 
+## 1.5 The Evaluation "Quiz" Strategy
+
+To ensure the model learns rather than just memorizes the training data, a strict evaluation block was implemented during training:
+
+*   **The Holdout Set:** Initially, **4,326 examples** (10% of the data) were surgically extracted into an isolated `eval_dataset`. The model is *never* allowed to update its weights based on these examples during the training loops.
+*   **The "Pop Quizzes"**: Every 20 training steps (`eval_steps=20`), the model is paused from learning and forced to iterate over those 4,326 examples, computing its `eval_loss`.
+*   **Significance**: These "quizzes" test the model's actual general-purpose understanding of the Bangla instructions (e.g. Can it correct the spelling of a word it has never seen?). The lower this validation loss goes, the more confident we can be that the LoRA adapter is successfully learning robust conversational boundaries and mapping real grammar rules, rather than just overfitting.
+
+### Example Evaluation Quiz Questions:
+
+During the quiz, the model is fed exactly the `System` and `User` portions of unseen training rows, and the trainer algorithm mathematically compares its response against the hidden, correct `Assistant` response.
+
+**Example 1: Spelling Error Check**
+> **System:** You are a helpful language expert.
+> **User:** নিচের ভুল বানানের শব্দটি শুদ্ধ করে লিখুন: 'দূরারোগ্য'
+> 
+> *Expected Assistant Answer:* শুদ্ধ বানানটি হলো: 'দুরারোগ্য'
+
+**Example 2: Valid Vocabulary check**
+> **System:** You are a helpful language expert.
+> **User:** এই শব্দটি কি একটি সঠিক বাংলা শব্দ? 'হনূমান'
+> 
+> *Expected Assistant Answer:* না, 'হনূমান' একটি সঠিক বাংলা শব্দ নয়। সঠিক শব্দটি হলো 'হনুমান'।
+
 ## 2. Base Model & Precision
 
 - **Base Model**: `Qwen/Qwen2.5-1.5B-Instruct`
