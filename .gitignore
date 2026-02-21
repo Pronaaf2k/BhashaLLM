@@ -41,6 +41,7 @@ venv.bak/
 
 # Project specific heavy files
 data/
+datasets/
 models/
 checkpoints/
 output/

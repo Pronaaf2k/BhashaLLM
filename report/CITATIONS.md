@@ -37,6 +37,18 @@ This document lists all open-source models, datasets, and research papers used i
 - **Synthetic Grading Dataset**
   - **Description**: 200 question-answer pairs generated loosely based on Bangla literature for grading logic training.
   - **Source**: Self-generated (Synthetic).
+- **Spelling Checker v1**
+  - **Source**: [Kaggle](https://www.kaggle.com/datasets/mahadivai/spelling-checker-v1)
+  - **Usage**: Instruction tuning dataset for Qwen-2.5-1.5B-Instruct to improve response quality.
+- **Bangla Word Frequency Dataset 80k**
+  - **Source**: [Kaggle](https://www.kaggle.com/datasets/mdraselsarker/bangla-word-frequency-dataset-80k)
+  - **Usage**: Instruction tuning dataset for Qwen-2.5-1.5B-Instruct to improve response quality.
+- **Bangla Gold Dataset for Morphological Analysis**
+  - **Source**: [Kaggle](https://www.kaggle.com/datasets/estiakruddro/bangla-gold-dataset-for-morphological-analysis)
+  - **Usage**: Instruction tuning dataset for Qwen-2.5-1.5B-Instruct to improve response quality.
+- **Bengali Sentences Extracted from OSCAR**
+  - **Source**: [Kaggle](https://www.kaggle.com/datasets/ibraheemmoosa/bengali-sentences-extracted-from-oscaar)
+  - **Usage**: Instruction tuning dataset for Qwen-2.5-1.5B-Instruct to improve response quality.
 
 ### OCR Datasets (Phase 4-6)
 - **Ekush (Handwritten Characters)**

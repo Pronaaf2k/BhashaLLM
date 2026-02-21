@@ -121,8 +121,8 @@ def main():
             trust_remote_code=True
         )
     except:
-        from transformers import AutoModel
-        model = AutoModel.from_pretrained(
+        from transformers import AutoModelForImageTextToText
+        model = AutoModelForImageTextToText.from_pretrained(
             args.model_id,
             torch_dtype=torch.bfloat16,
             device_map="auto",
