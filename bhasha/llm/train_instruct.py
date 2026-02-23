@@ -86,6 +86,10 @@ def train(args):
         eval_steps=20,
         save_strategy="steps",
         save_steps=20,
+        save_total_limit=10, # Keep more checkpoints so past progress isn't overwritten easily
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_loss",
+        greater_is_better=False,
     )
 
     trainer = SFTTrainer(
@@ -96,7 +100,7 @@ def train(args):
         # No peft_config here, as model is already a PeftModel
     )
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(os.path.join(OUTPUT_DIR, "final_instruct_adapter"))
     print(f"Model saved to {os.path.join(OUTPUT_DIR, 'final_instruct_adapter')}")
 
@@ -107,6 +111,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--context_length", type=int, default=512)
+    parser.add_argument("--resume_from_checkpoint", action="store_true", help="Resume training from the latest checkpoint")
     args = parser.parse_args()
     
     if not os.path.exists(LOG_DIR):

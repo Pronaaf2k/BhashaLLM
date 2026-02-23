@@ -46,6 +46,8 @@ models/
 checkpoints/
 output/
 wandb/
+trainedmodels/
+
 
 # Large files by extension (just in case they are outside ignored dirs)
 *.pt
