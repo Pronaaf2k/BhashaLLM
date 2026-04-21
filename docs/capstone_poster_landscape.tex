@@ -69,7 +69,7 @@
 \vspace{0.2cm}
 \begin{itemize}
   \item লোকাল মডেল-ভিত্তিক বাংলা OCR + LLM স্ট্যাক।
-  \item API-চালিত টিউটর ও দার্শনিক রেসপন্স।
+  \item API-চালিত টিউটর ও দার্শনিক প্রতিক্রিয়া।
   \item অফলাইন ডিপ্লয়মেন্ট বান্ধব আর্কিটেকচার।
 \end{itemize}
 \end{alertblock}
@@ -86,10 +86,10 @@
 ]
   \node[box] (input) {ইনপুট ইমেজ};
   \node[box, below=of input] (pre) {প্রি-প্রসেসিং \\ (কনট্রাস্ট, রিসাইজ)};
-  \node[box, below=of pre] (ocr) {OCR মডেল \\ (ResNet + Grapheme)};
+  \node[box, below=of pre] (ocr) {OCR মডেল \\ (ResNet-34 + Grapheme ক্লাসিফায়ার)};
   \node[box, below=of ocr] (text) {রিকগনাইজড টেক্সট};
   \node[box, below=of text] (llm) {LLM টিউটর/ফিডব্যাক};
-  \node[box, below=of llm] (api) {FastAPI রেসপন্স};
+  \node[box, below=of llm] (api) {FastAPI প্রতিক্রিয়া};
 
   \draw[arrow] (input) -- (pre);
   \draw[arrow] (pre) -- (ocr);
@@ -159,7 +159,7 @@ Response Quality & --- & 4.6/5 \\
 \begin{block}{যোগাযোগ}
 \vspace{0.2cm}
 \begin{itemize}
-  \item \textbf{Email:} [student-email]@[university-domain]
+  \item \textbf{Email:} student.name@university-domain
   \item \textbf{GitHub:} github.com/Pronaaf2k/BhashaLLM
 \end{itemize}
 \vspace{0.2cm}
