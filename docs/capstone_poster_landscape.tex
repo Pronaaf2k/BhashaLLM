@@ -1,0 +1,172 @@
+% BhashaLLM Capstone Poster (Landscape)
+% Compile with: pdflatex capstone_poster_landscape.tex
+\documentclass[final]{beamer}
+\usepackage[orientation=landscape,size=a1,scale=1.1]{beamerposter}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{lmodern}
+\usetikzlibrary{positioning, arrows.meta}
+
+\definecolor{bhBlue}{RGB}{18, 64, 118}
+\definecolor{bhTeal}{RGB}{19, 140, 126}
+\definecolor{bhLight}{RGB}{235, 243, 250}
+\definecolor{bhAccent}{RGB}{242, 111, 49}
+
+\setbeamercolor{title}{fg=bhBlue}
+\setbeamercolor{author}{fg=black}
+\setbeamercolor{institute}{fg=black}
+\setbeamercolor{block title}{fg=white,bg=bhBlue}
+\setbeamercolor{block body}{fg=black,bg=bhLight}
+\setbeamercolor{alertblock title}{fg=white,bg=bhAccent}
+\setbeamercolor{alertblock body}{fg=black,bg=bhLight}
+\setbeamercolor{headline}{bg=white}
+\setbeamercolor{footline}{fg=white,bg=bhBlue}
+
+\setlength{\columnsep}{2.2cm}
+\setlength{\columnseprule}{0mm}
+
+\title{\Huge \textbf{BhashaLLM:} বাংলা ভাষা ও হ্যান্ডরাইটিং বোঝার জন্য ক্যাপস্টোন সিস্টেম}
+\author{\Large Student Name \quad \textbar \quad ID: 000000}
+\institute{\Large Department of CSE \quad \textbar \quad University Name}
+
+\begin{document}
+\begin{frame}[t]
+\begin{columns}[t]
+
+% Column 1
+\column{0.32\textwidth}
+\begin{block}{সমস্যা ও প্রেরণা}
+\vspace{0.2cm}
+\begin{itemize}
+  \item বাংলা একটি কম-রিসোর্স ভাষা; উচ্চমানের OCR ও LLM টুলের অভাব রয়েছে।
+  \item হাতে লেখা বাংলা অক্ষরের ভ্যারিয়েশন বেশি হওয়ায় OCR নির্ভুলতা কমে যায়।
+  \item শিক্ষার্থীদের জন্য স্বয়ংক্রিয় টিউটরিং ও ব্যাখ্যা-সহায়তা জরুরি।
+\end{itemize}
+\end{block}
+
+\begin{block}{লক্ষ্য}
+\vspace{0.2cm}
+\begin{enumerate}
+  \item হাতে লেখা বাংলা শব্দ সঠিকভাবে শনাক্ত করা।
+  \item OCR আউটপুট থেকে শিক্ষামূলক ব্যাখ্যা/ফিডব্যাক তৈরি করা।
+  \item অফলাইন ও লোকাল মডেল ভিত্তিক ব্যবহারযোগ্য API তৈরি করা।
+\end{enumerate}
+\end{block}
+
+\begin{block}{ডেটাসেট ও ট্রেনিং}
+\vspace{0.2cm}
+\begin{itemize}
+  \item OCR: বাংলা হস্তলিখন ডেটাসেট (গ্রাফিম-রুট, ভাওয়েল, কনসোন্যান্ট)।
+  \item LLM: বাংলা ইনস্ট্রাক্ট ফাইনটিউনিং ও কাস্টম অ্যাডাপ্টার।
+  \item ট্রেনিং পাইপলাইন: ডেটা প্রিপারেশন $\rightarrow$ ট্রেনিং $\rightarrow$ ভ্যালিডেশন।
+\end{itemize}
+\end{block}
+
+\begin{alertblock}{মূল অবদান}
+\vspace{0.2cm}
+\begin{itemize}
+  \item লোকাল মডেল-ভিত্তিক বাংলা OCR + LLM স্ট্যাক।
+  \item API-চালিত টিউটর ও ফিলসফিক্যাল রেসপন্স।
+  \item অফলাইন ডিপ্লয়মেন্ট বান্ধব আর্কিটেকচার।
+\end{itemize}
+\end{alertblock}
+
+% Column 2
+\column{0.36\textwidth}
+\begin{block}{সিস্টেম আর্কিটেকচার}
+\vspace{0.4cm}
+\centering
+\begin{tikzpicture}[
+  node distance=1.0cm,
+  box/.style={rounded corners, draw=bhBlue, fill=white, thick, align=center, minimum height=1.1cm, minimum width=5cm},
+  arrow/.style={-Latex, thick, color=bhBlue}
+]
+  \node[box] (input) {ইনপুট ইমেজ};
+  \node[box, below=of input] (pre) {প্রি-প্রসেসিং \\ (কনট্রাস্ট, রিসাইজ)};
+  \node[box, below=of pre] (ocr) {OCR মডেল \\ (ResNet + Grapheme)};
+  \node[box, below=of ocr] (text) {রিকগনাইজড টেক্সট};
+  \node[box, below=of text] (llm) {LLM টিউটর/ফিডব্যাক};
+  \node[box, below=of llm] (api) {FastAPI রেসপন্স};
+
+  \draw[arrow] (input) -- (pre);
+  \draw[arrow] (pre) -- (ocr);
+  \draw[arrow] (ocr) -- (text);
+  \draw[arrow] (text) -- (llm);
+  \draw[arrow] (llm) -- (api);
+\end{tikzpicture}
+\vspace{0.4cm}
+\end{block}
+
+\begin{block}{ইন্টারফেস ও API}
+\vspace{0.2cm}
+\begin{itemize}
+  \item \textbf{/api/analyze} — OCR ইনফারেন্স + মেট্রিকস
+  \item \textbf{/api/chat} — টিউটরিং ও ব্যাখ্যা
+  \item \textbf{/api/philosophical} — সাহিত্যিক প্রতিফলন
+\end{itemize}
+\vspace{0.2cm}
+\fbox{\parbox{0.9\linewidth}{\centering
+ডেমো স্ক্রিনশট/ইন্টারফেস প্রিভিউ এখানে যোগ করুন}}
+\end{block}
+
+\begin{block}{মূল ফলাফল (উদাহরণ)}
+\vspace{0.2cm}
+\centering
+\begin{tabular}{lcc}
+\toprule
+মেট্রিক & OCR & LLM \\
+\midrule
+Accuracy & 92.4\% & --- \\
+CER      & 7.6\%  & --- \\
+Response Quality & --- & 4.6/5 \\
+\bottomrule
+\end{tabular}
+\vspace{0.2cm}
+\end{block}
+
+% Column 3
+\column{0.32\textwidth}
+\begin{block}{ইউজ-কেস}
+\vspace{0.2cm}
+\begin{itemize}
+  \item বাংলা হ্যান্ডরাইটিং যাচাই ও শেখা
+  \item শিক্ষার্থীদের জন্য স্বয়ংক্রিয় টিউটরিং
+  \item বাংলা সাহিত্যিক কনটেন্ট বিশ্লেষণ
+\end{itemize}
+\end{block}
+
+\begin{block}{ফিউচার ওয়ার্ক}
+\vspace{0.2cm}
+\begin{itemize}
+  \item লাইন/প্যারাগ্রাফ লেভেল OCR
+  \item মাল্টিমোডাল ব্যাখ্যা ও অডিও ফিডব্যাক
+  \item মডেল কম্প্রেশন ও মোবাইল ডিপ্লয়মেন্ট
+\end{itemize}
+\end{block}
+
+\begin{block}{টিম ও কৃতজ্ঞতা}
+\vspace{0.2cm}
+\begin{itemize}
+  \item Supervisor: \textbf{Dr. Name}
+  \item Team Members: Name 1, Name 2, Name 3
+  \item বিশেষ ধন্যবাদ: Lab/Department
+\end{itemize}
+\end{block}
+
+\begin{block}{যোগাযোগ}
+\vspace{0.2cm}
+\begin{itemize}
+  \item \textbf{Email:} yourname@university.edu
+  \item \textbf{GitHub:} github.com/Pronaaf2k/BhashaLLM
+\end{itemize}
+\vspace{0.2cm}
+\fbox{\parbox{0.85\linewidth}{\centering
+QR কোড এখানে দিন}}
+\end{block}
+
+\end{columns}
+\end{frame}
+\end{document}
