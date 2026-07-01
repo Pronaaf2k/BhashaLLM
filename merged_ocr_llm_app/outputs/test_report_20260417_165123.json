@@ -1,0 +1,164 @@
+{
+  "summary": {
+    "images_tested": 2,
+    "ocr_exact_match": 0,
+    "llm_exact_match": 0,
+    "with_llm": false,
+    "ocr_model": "default_bwwo_local",
+    "llm_model": null
+  },
+  "results": [
+    {
+      "timestamp": "2026-04-17T16:51:24.327164+00:00",
+      "image": "/home/benaaf/Desktop/BhashaOCRLLMApp_Updated/assets/samples/handw_s_demo/1.jpg",
+      "ocr_model": "default_bwwo_local",
+      "ocr": {
+        "recognized_text": "ইলেক্টেভ্রান",
+        "confidence": 0.7677104413509369,
+        "characters": [
+          {
+            "text": "ই",
+            "confidence": 0.997368574142456,
+            "indices": {
+              "grapheme_root": 14,
+              "vowel_diacritic": 0,
+              "consonant_diacritic": 0
+            },
+            "bbox": [
+              248,
+              96,
+              731,
+              1130
+            ]
+          },
+          {
+            "text": "লে",
+            "confidence": 0.9912750124931335,
+            "indices": {
+              "grapheme_root": 134,
+              "vowel_diacritic": 7,
+              "consonant_diacritic": 0
+            },
+            "bbox": [
+              779,
+              298,
+              1390,
+              1096
+            ]
+          },
+          {
+            "text": "ক্টে",
+            "confidence": 0.9986987113952637,
+            "indices": {
+              "grapheme_root": 25,
+              "vowel_diacritic": 7,
+              "consonant_diacritic": 0
+            },
+            "bbox": [
+              1412,
+              41,
+              1982,
+              1186
+            ]
+          },
+          {
+            "text": "ভ্রা",
+            "confidence": 0.8854393362998962,
+            "indices": {
+              "grapheme_root": 123,
+              "vowel_diacritic": 1,
+              "consonant_diacritic": 5
+            },
+            "bbox": [
+              1841,
+              238,
+              2317,
+              1186
+            ]
+          },
+          {
+            "text": "ন",
+            "confidence": 0.999351441860199,
+            "indices": {
+              "grapheme_root": 91,
+              "vowel_diacritic": 0,
+              "consonant_diacritic": 0
+            },
+            "bbox": [
+              2328,
+              297,
+              2741,
+              1029
+            ]
+          }
+        ],
+        "detections": 5,
+        "image_size": {
+          "width": 3000,
+          "height": 1250
+        }
+      }
+    },
+    {
+      "timestamp": "2026-04-17T16:51:24.429961+00:00",
+      "image": "/home/benaaf/Desktop/BhashaOCRLLMApp_Updated/assets/samples/handw_s_demo/2.jpg",
+      "ocr_model": "default_bwwo_local",
+      "ocr": {
+        "recognized_text": "রাষ্ট্রীয়",
+        "confidence": 0.8983319004376729,
+        "characters": [
+          {
+            "text": "রা",
+            "confidence": 0.9946748614311218,
+            "indices": {
+              "grapheme_root": 133,
+              "vowel_diacritic": 1,
+              "consonant_diacritic": 0
+            },
+            "bbox": [
+              137,
+              864,
+              1104,
+              1976
+            ]
+          },
+          {
+            "text": "ষ্ট্রী",
+            "confidence": 0.9956841468811035,
+            "indices": {
+              "grapheme_root": 151,
+              "vowel_diacritic": 3,
+              "consonant_diacritic": 5
+            },
+            "bbox": [
+              1116,
+              92,
+              2197,
+              1946
+            ]
+          },
+          {
+            "text": "য়",
+            "confidence": 0.9984568357467651,
+            "indices": {
+              "grapheme_root": 177,
+              "vowel_diacritic": 0,
+              "consonant_diacritic": 0
+            },
+            "bbox": [
+              2220,
+              675,
+              2782,
+              1869
+            ]
+          }
+        ],
+        "detections": 3,
+        "image_size": {
+          "width": 3000,
+          "height": 2205
+        }
+      }
+    }
+  ]
+}

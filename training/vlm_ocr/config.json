@@ -1,0 +1,22 @@
+{
+  "base_model": "google/paligemma2-3b-pt-448",
+  "prompt": "Read the handwritten Bangla text in this image. Return only the exact text. Preserve line breaks when visible.",
+  "train_jsonl": "training/vlm_ocr/data_desktop/merged_lines/train.jsonl",
+  "val_jsonl": "training/vlm_ocr/data_desktop/merged_lines/val.jsonl",
+  "test_jsonl": "training/vlm_ocr/data_desktop/merged_lines/test.jsonl",
+  "output_dir": "training/vlm_ocr/outputs/paligemma2_3b_448_desktop_lines_lora",
+  "max_length": 2048,
+  "image_max_pixels": 786432,
+  "image_min_pixels": 3136,
+  "epochs": 3,
+  "batch_size": 1,
+  "gradient_accumulation_steps": 8,
+  "learning_rate": 0.0001,
+  "lora_r": 16,
+  "lora_alpha": 32,
+  "lora_dropout": 0.05,
+  "save_steps": 100,
+  "eval_steps": 100,
+  "logging_steps": 10,
+  "max_new_tokens": 256
+}

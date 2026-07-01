@@ -1,0 +1,111 @@
+{
+  "summary": {
+    "images_tested": 1,
+    "ocr_exact_match": 0,
+    "llm_exact_match": 0,
+    "with_llm": true,
+    "ocr_model": "default_bwwo_local",
+    "llm_model": "instruct_local"
+  },
+  "results": [
+    {
+      "timestamp": "2026-04-17T16:51:31.712053+00:00",
+      "image": "/home/benaaf/Desktop/BhashaOCRLLMApp_Updated/assets/samples/handw_s_demo/1.jpg",
+      "ocr_model": "default_bwwo_local",
+      "ocr": {
+        "recognized_text": "ইলেক্টেভ্রান",
+        "confidence": 0.7677104413509369,
+        "characters": [
+          {
+            "text": "ই",
+            "confidence": 0.997368574142456,
+            "indices": {
+              "grapheme_root": 14,
+              "vowel_diacritic": 0,
+              "consonant_diacritic": 0
+            },
+            "bbox": [
+              248,
+              96,
+              731,
+              1130
+            ]
+          },
+          {
+            "text": "লে",
+            "confidence": 0.9912750124931335,
+            "indices": {
+              "grapheme_root": 134,
+              "vowel_diacritic": 7,
+              "consonant_diacritic": 0
+            },
+            "bbox": [
+              779,
+              298,
+              1390,
+              1096
+            ]
+          },
+          {
+            "text": "ক্টে",
+            "confidence": 0.9986987113952637,
+            "indices": {
+              "grapheme_root": 25,
+              "vowel_diacritic": 7,
+              "consonant_diacritic": 0
+            },
+            "bbox": [
+              1412,
+              41,
+              1982,
+              1186
+            ]
+          },
+          {
+            "text": "ভ্রা",
+            "confidence": 0.8854393362998962,
+            "indices": {
+              "grapheme_root": 123,
+              "vowel_diacritic": 1,
+              "consonant_diacritic": 5
+            },
+            "bbox": [
+              1841,
+              238,
+              2317,
+              1186
+            ]
+          },
+          {
+            "text": "ন",
+            "confidence": 0.999351441860199,
+            "indices": {
+              "grapheme_root": 91,
+              "vowel_diacritic": 0,
+              "consonant_diacritic": 0
+            },
+            "bbox": [
+              2328,
+              297,
+              2741,
+              1029
+            ]
+          }
+        ],
+        "detections": 5,
+        "image_size": {
+          "width": 3000,
+          "height": 1250
+        }
+      },
+      "llm_model": "instruct_local",
+      "llm": {
+        "task": "correct",
+        "prompt": "তুমি বাংলা OCR পোস্ট-প্রসেসর। ভুল অক্ষর, বানান এবং যুক্তাক্ষর ঠিক করো।\nশুধু সংশোধিত চূড়ান্ত বাংলা শব্দ/টেক্সট দাও, অতিরিক্ত ব্যাখ্যা দিও না।\n\nOCR ফলাফল: ইলেক্টেভ্রান",
+        "output": "শুদ্ধ বাংলা শব্দটি হলো",
+        "adapter_loaded": true,
+        "adapter_warning": null
+      }
+    }
+  ]
+}

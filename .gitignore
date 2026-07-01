@@ -56,3 +56,7 @@ trainedmodels/
 *.onnx
 *.safetensors
 *.ckpt
+
+# But allow LoRA adapter weights and training outputs in the vlm_ocr directory
+!training/vlm_ocr/outputs/**/adapter_model.safetensors
+!training/vlm_ocr/outputs/**/training_args.bin
