@@ -1,0 +1,48 @@
+cff-version: 1.2.0
+title: "BhashaLLM: A QLoRA-Based Framework for Bangla Text Generation and Handwritten Character Recognition"
+message: "If you use this software or dataset, please cite the paper below."
+type: software
+authors:
+  - family-names: Binaaf
+    given-names: Samiyeel Alim
+    affiliation: "Department of Electrical and Computer Engineering, North South University"
+    email: samiyeel.binaaf@northsouth.edu
+  - family-names: Arafat
+    given-names: "Md. Yeasin"
+    affiliation: "Department of Electrical and Computer Engineering, North South University"
+    email: yeasin.arafat10@northsouth.edu
+  - family-names: Chaklader
+    given-names: Atique Shahrier
+    affiliation: "Department of Electrical and Computer Engineering, North South University"
+    email: atique.chaklader@northsouth.edu
+  - family-names: Rahman
+    given-names: "Rashedur M."
+    affiliation: "Department of Electrical and Computer Engineering, North South University"
+    email: rashedur.rahman@northsouth.edu
+repository-code: "https://github.com/Pronaaf2k/BhashaLLM"
+license: MIT
+version: "1.0-paper"
+keywords:
+  - bangla-nlp
+  - handwritten-ocr
+  - qlora
+  - low-resource-languages
+  - vision-language-models
+  - parameter-efficient-fine-tuning
+preferred-citation:
+  type: conference-paper
+  title: "BhashaLLM: A QLoRA-Based Framework for Bangla Text Generation and Handwritten Character Recognition"
+  authors:
+    - family-names: Binaaf
+      given-names: Samiyeel Alim
+    - family-names: Arafat
+      given-names: "Md. Yeasin"
+    - family-names: Chaklader
+      given-names: Atique Shahrier
+    - family-names: Rahman
+      given-names: "Rashedur M."
+  # TODO: fill in from the acceptance notice before tagging v1.0-paper
+  conference:
+    name: "TODO: conference name"
+  year: 2026
+  # doi: "TODO"

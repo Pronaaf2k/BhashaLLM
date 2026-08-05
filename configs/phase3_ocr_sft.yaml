@@ -1,0 +1,60 @@
+# Phase 3 - handwritten Bangla OCR fine-tuning.
+# Two documented deviations from Table III, both from Sec. IV-C:
+#   * 2000 optimiser steps rather than 500 (image set is an order of
+#     magnitude larger than the text sets)
+#   * learning rate 1e-4 rather than 2e-4, after a 2e-4 run produced a
+#     validation loss that oscillated without settling
+
+phase: 3_ocr_sft
+base_model: swapnillo/Bangla-OCR-SFT      # Qwen3-VL-style architecture
+seed: 42
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_compute_dtype: float16
+  bnb_4bit_use_double_quant: true
+
+lora:
+  r: 16                                   # NOTE: inherited from the text
+  alpha: 32                               # phases. No rank sweep was run
+  dropout: 0.05                           # for the vision encoder; whether
+  target_modules: [q_proj, v_proj]        # 16 suffices there is untested.
+  task_type: CAUSAL_LM                    # See paper Sec. III-C.
+
+training:
+  learning_rate: 1.0e-4                   # deviation, see header
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 4
+  max_steps: 2000                         # deviation, see header
+  warmup_steps: 50
+  lr_scheduler_type: cosine
+  gradient_checkpointing: true
+  optim: adamw_torch
+
+data:
+  # UNRESOLVED: the committed adapter is named `banglawriting_adapter`,
+  # which does not match this description. Open the loader and confirm
+  # which dataset is actually read before relying on this block.
+  # See docs/ERRATA.md C1 - highest-priority open item.
+  ekush_images: 6000                      # stratified by grapheme root so
+                                          # rare conjuncts survive sampling
+  self_collected_train: 1050
+  self_collected_val: 150
+  self_collected_test: 300                # test split is self-collected only
+  image_size: 256                         # 224 -> 256 costs 40 ms, gains
+                                          # 0.02 reported confidence
+  manifest: data/handwriting/manifest.csv # must carry writer_id
+
+evaluation:
+  decoding: greedy
+  max_new_tokens: 128
+  # Report BOTH: writer-overlapping CER (comparable to the published 12%)
+  # and leave-one-writer-out CER. Sec. VI-D concedes the published figure
+  # is optimistic; the gap between the two is itself a result.
+  writer_disjoint: true
+
+logging:
+  summary_path: logs/phase3_summary.json
+  record_peak_vram: true
+  compute_epochs_covered: true

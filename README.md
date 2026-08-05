@@ -1,202 +1,229 @@
-# ✅ BhashaLLM - Complete Local Setup
+# BhashaLLM
 
-## 🎉 Success! All Models Are Now Local and Working
+A Bangla text-generation and handwritten-OCR stack that runs end to end on
+a single 16 GB consumer GPU. It pairs a QLoRA-fine-tuned instruction model
+with a vision-language OCR pipeline, and benchmarks nine language and
+vision-language architectures (1.5B–12B parameters) on Bangla translation,
+summarisation and OCR correction.
 
-Your project is now **completely self-contained** with all base models and adapters stored locally. No HuggingFace token or internet connection needed!
+This repository is the artifact accompanying the paper below. If you are
+here to check a number in that paper, start with
+[`docs/TRACEABILITY.md`](docs/TRACEABILITY.md), which maps each claim to
+the file and command that produces it, and
+[`docs/ERRATA.md`](docs/ERRATA.md), which records where the manuscript and
+this repository do not agree.
 
-## 📁 Directory Structure
+> **BhashaLLM: A QLoRA-Based Framework for Bangla Text Generation and
+> Handwritten Character Recognition.**
+> S. A. Binaaf, M. Y. Arafat, A. S. Chaklader, R. M. Rahman.
+> Department of Electrical and Computer Engineering, North South
+> University, Dhaka, Bangladesh.
+> <!-- TODO: venue, year, DOI once the proceedings are published -->
+
+---
+
+## Read this before citing a number
+
+The manuscript is published and fixed. This repository is not, and several
+figures in the paper need qualifiers they did not receive in print. The
+substantive ones:
+
+- **No 11-billion-parameter model was fine-tuned.** Llama-3.2-11B was
+  evaluated by quantised inference. QLoRA training was applied to the 1.5B
+  instruction model and the vision-language OCR model. Table II of the
+  paper is a feasibility analysis, not a record of a run.
+- **The software versions in Section IV-A are wrong** and describe an
+  environment that could not have run this project. The correct versions
+  are below and in `docs/environment_capture.txt`.
+- **The 12% OCR CER is measured on handwriting the model has seen.** The
+  self-collected split is not writer-disjoint. Treat it as an estimate for
+  familiar handwriting.
+- **Table VI's ROUGE figures predate any committed ROUGE implementation**
+  and their tokenizer is unrecorded. Bangla ROUGE is unusually easy to get
+  silently wrong; see `eval/text_metrics.py`.
+
+Full list with reasoning: [`docs/ERRATA.md`](docs/ERRATA.md).
+
+---
+
+## Environment
+
+Verified on:
+
+| | |
+| --- | --- |
+| GPU | NVIDIA RTX 5070 Ti, 16 GB VRAM (Blackwell, sm_120), 200 W cap |
+| CPU / RAM | 12-core Intel Core i9, 32 GB |
+| PyTorch | 2.10.0 |
+| Transformers | 4.57.6 |
+| BitsAndBytes | 0.49.1 |
+| PEFT | 0.18.1 |
+| CUDA runtime | 12.8.x |
+
+Do not transcribe this table into a paper by hand. Regenerate it:
+
+```bash
+bash scripts/capture_environment.sh    # writes docs/environment_capture.txt
+```
+
+## Install
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt          # direct dependencies
+# pip install -r requirements-full.lock  # exact frozen environment
+```
+
+`requirements.txt` lists what the pipeline imports. `requirements-full.lock`
+is the full `pip freeze` from the development machine, preserved for exact
+reproduction. It contains packages this project does not use — see
+`docs/ERRATA.md` group C.
+
+## Models
+
+Base models and adapters total about 10.5 GB and are not in git. Layout
+under `models/`:
 
 ```
 models/
-├── base_models/              (6.9GB) - Downloaded from HuggingFace
-│   ├── Qwen2.5-1.5B-Instruct/    (2.9GB)
-│   └── Bangla-OCR-SFT/           (4.0GB)
-├── bangla_adapters/          (1.5GB) - Your trained models
-│   └── final_adapter/
-├── instruct_adapters/        (1.4GB) - Your trained models
-│   └── final_instruct_adapter/
-└── ocr_adapters/             (743MB) - Your trained models
-    └── banglawriting_adapter/
-
-Total: 10.5GB (all in .gitignore, won't be committed to Git)
+  base_models/
+    Qwen2.5-1.5B-Instruct/     2.9 GB   Qwen/Qwen2.5-1.5B-Instruct
+    Bangla-OCR-SFT/            4.0 GB   swapnillo/Bangla-OCR-SFT
+  bangla_adapters/final_adapter/          1.5 GB   phase 1
+  instruct_adapters/final_instruct_adapter/ 1.4 GB phase 2
+  ocr_adapters/<adapter>/                 743 MB   phase 3
 ```
 
-## ✅ What Was Done
+Only the base model and the currently needed adapter are resident at
+runtime, so the 6.9 GB of base weights is not duplicated per task.
 
-1. **Downloaded Base Models** from HuggingFace cache to `models/base_models/`:
-   - ✅ Qwen/Qwen2.5-1.5B-Instruct (2.9GB)
-   - ✅ swapnillo/Bangla-OCR-SFT (4.0GB)
+> The Phase-3 adapter directory is currently named `banglawriting_adapter`,
+> which does not match the training data described in the paper. This is
+> unresolved — see `docs/ERRATA.md` §C1. Do not rely on the OCR
+> training-data description until it is.
 
-2. **Verified All Models Work**:
-   - ✅ Bangla LLM generates Bangla text
-   - ✅ Grading model provides feedback in Bangla
-   - ✅ OCR model base + adapter loaded successfully
+## Running it
 
-3. **Updated Scripts** to use local models:
-   - ✅ Created `model_paths.py` helper
-   - ✅ Updated `test_models.py` to use local paths
-   - ✅ No HuggingFace downloads needed anymore!
+The entry point is `main.py`, which serves the FastAPI application:
 
-4. **Git Ignore Configured**:
-   - ✅ `models/` directory is in `.gitignore`
-   - ✅ Large files won't be committed to Git
-
-## 🚀 How to Use
-
-### Test All Models (No Internet Needed!)
 ```bash
-python3 test_models.py
+python main.py                     # or: uvicorn main:app --reload
 ```
 
-### Test Individual Models
+Section III-F of the paper describes `test_models.py` as the primary
+production interface. That script is not in this repository; `main.py` is
+the entry point. Recorded in `docs/ERRATA.md` group C.
 
-**Bangla LLM:**
+## Reproducing the paper
+
+Each command writes a JSON file that contains the numbers behind the
+corresponding table. Regenerated figures supersede the printed ones where
+they differ.
+
+| Paper location | Command | Output |
+| --- | --- | --- |
+| Sec. III-B — base model selection | `python eval/compute_bpc.py --models Qwen/Qwen2.5-1.5B-Instruct facebook/xglm-1.7b --corpus data/splits/test.txt` | `eval/bpc_comparison.json` |
+| Sec. IV-A — environment | `bash scripts/capture_environment.sh` | `docs/environment_capture.txt` |
+| Table IV — training phases | `python -m bhasha.llm.train --config configs/phase1_bangla_pt.yaml` (likewise phases 2, 3) | `logs/phase{1,2,3}_summary.json` |
+| Table VI — summarisation | `python eval/text_metrics.py --pred benchmarks/raw/<model>.jsonl` | `eval/rouge_results.json` |
+| Sec. V-A — BLEU / chrF++ | same command; requires `sacrebleu` | signatures included in output |
+| Sec. V-C — script integrity | `python eval/script_integrity.py benchmarks/raw/*.jsonl --out eval/script_integrity.json` | `eval/script_integrity.json` |
+| Table VII — OCR CER | `python eval/ocr_cer.py --pred eval/ocr_predictions.jsonl --manifest data/handwriting/manifest.csv --group-by writer_id` | `eval/ocr_cer.json` |
+| Sec. V-B — grapheme breakdown | same command | `by_grapheme_category` in the same file |
+| Table V — human evaluation | `python eval/aggregate_human_eval.py --ratings human_eval/ratings.csv` | `human_eval/alpha_by_dimension.json` |
+
+Training runs log peak VRAM and computed epoch coverage, so Table II and
+Table IV are read out of the logs rather than typed:
+
 ```python
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel
-from model_paths import get_qwen_model_path, get_adapter_path
-
-model = AutoModelForCausalLM.from_pretrained(get_qwen_model_path(), device_map="auto")
-tokenizer = AutoTokenizer.from_pretrained(get_qwen_model_path())
-model = PeftModel.from_pretrained(model, get_adapter_path('bangla_llm'))
-
-# Generate text
-prompt = "আমি বাংলায় গান গাই"
-inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-outputs = model.generate(**inputs, max_new_tokens=100)
-print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+import torch, json, time
+torch.cuda.reset_peak_memory_stats()
+t0 = time.time()
+# ... training loop ...
+json.dump({
+    "phase": "1_bangla_pt",
+    "seed": cfg["seed"],
+    "steps": step,
+    "final_train_loss": loss,
+    "peak_vram_gb": torch.cuda.max_memory_allocated() / 1e9,
+    "wall_clock_s": time.time() - t0,
+    "n_train_sequences": len(train_ds),
+    "tokens_per_sequence": cfg["max_seq_length"],
+    "effective_batch": cfg["batch_size"] * cfg["gradient_accumulation_steps"],
+    "epochs_covered": (step * cfg["batch_size"]
+                       * cfg["gradient_accumulation_steps"]) / len(train_ds),
+}, open("logs/phase1_summary.json", "w"), indent=2)
 ```
 
-**Grading Model:**
-```python
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel
-from model_paths import get_qwen_model_path, get_adapter_path
+`epochs_covered` is computed deliberately. Section IV-C's 0.8-epoch figure
+does not reconcile with the stated corpus size (`docs/ERRATA.md` §B2);
+whatever this line prints is the number to use.
 
-model = AutoModelForCausalLM.from_pretrained(get_qwen_model_path(), device_map="auto")
-tokenizer = AutoTokenizer.from_pretrained(get_adapter_path('instruct'))
-model = PeftModel.from_pretrained(model, get_adapter_path('instruct'))
+## Two Bangla evaluation hazards
 
-# Grade an answer
-prompt = "Grade this answer: বাংলাদেশের রাজধানী ঢাকা।"
-inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-outputs = model.generate(**inputs, max_new_tokens=200)
-print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+Both were found while writing the scripts in `eval/`, and both silently
+corrupt results rather than failing loudly.
+
+**The danda is not Devanagari-only.** U+0964 and U+0965 sit in the
+Devanagari block but are shared Indic punctuation and the correct sentence
+terminators in Bangla. A script-confusion detector that flags any
+codepoint in U+0900–U+097F marks every correctly punctuated Bangla
+sentence as confused. `eval/script_integrity.py` exempts them.
+
+**`\w` drops Bangla vowel signs.** Python's `\w` matches only what
+`str.isalnum()` accepts, and `isalnum()` is False for Unicode categories Mn
+and Mc — which is what Bangla matra and the hasant are. A `[^\W_]+`
+tokenizer splits `বাংলাদেশের` into `ব`, `ল`, `দ`, `শ`, `র`. Separately, the
+google-research `rouge_score` default tokenizer strips all non-ASCII and
+returns 0.0 on any Bangla input. `eval/text_metrics.py` uses a
+mark-aware tokenizer and prints its name in every output file.
+
+## Data
+
+See [`DATA_CARD.md`](DATA_CARD.md) for provenance, licensing and
+collection procedure.
+
+The self-collected handwriting set is 1,500 pages from **three** writers,
+which is enough to show that fine-tuning helps and not enough to establish
+how far the result generalises. Per-writer identifiers are required for
+writer-disjoint evaluation; see the data card for status.
+
+Text corpora are drawn from public-domain literary archives and Kaggle
+datasets, each carrying its own license. The data card lists URL, access
+date, license and checksum per source.
+
+## Layout
+
+```
+bhasha/            core package (app, data, eval, llm, ocr, scripts, utils)
+configs/           one YAML per training phase
+eval/              metric implementations; each writes a JSON artifact
+benchmarks/        per-model raw generations and the model registry
+human_eval/        anchored rubric, anonymised ratings, reliability
+logs/              per-phase training summaries
+docs/              errata, traceability register, environment capture
+data/              splits, checksums, handwriting manifest
+tests/             mirrors the bhasha/ hierarchy
+main.py            FastAPI entry point
 ```
 
-**OCR Model:**
-```bash
-python3 bhasha/scripts/evaluate_swapnillo.py \
-  --adapter_path models/ocr_adapters/banglawriting_adapter \
-  --image_path data/raw/sample_ocr.jpg
-```
+## Limitations
 
-## 📊 Storage Summary
+Carried from the paper and not resolved here: script confusion persists in
+the smaller models (up to 23% of Qwen-1.5B generations); cultural and
+historical context in Bangla literature is handled poorly by models trained
+primarily on English; factual hallucination is unresolved across every
+model tested; the 6.6M-token literary corpus is not balanced across genre,
+register or period; OCR degrades on stylised handwriting, poor image
+quality and overlapping strokes; the OCR test set is not writer-disjoint;
+all training runs used a single seed.
 
-| Component | Size | Git Status |
-|-----------|------|------------|
-| Base Models | 6.9GB | ✅ Ignored |
-| Your Adapters | 3.6GB | ✅ Ignored |
-| Code & Scripts | <10MB | ✓ Tracked |
-| **Total** | **10.5GB** | |
+## Citation
 
-## 🔧 Helper Scripts
+See [`CITATION.cff`](CITATION.cff).
 
-### `model_paths.py`
-Provides local model paths:
-```python
-from model_paths import get_qwen_model_path, get_ocr_model_path, get_adapter_path
+## License
 
-# Get base model paths
-qwen_path = get_qwen_model_path()
-ocr_path = get_ocr_model_path()
-
-# Get adapter paths
-bangla_llm = get_adapter_path('bangla_llm')
-instruct = get_adapter_path('instruct')
-ocr = get_adapter_path('ocr')
-```
-
-### `download_base_models.py`
-Re-download base models if needed:
-```bash
-python3 download_base_models.py
-```
-
-### `test_models.py`
-Verify all models work:
-```bash
-python3 test_models.py
-```
-
-## ✅ Verification
-
-Run this to verify everything is set up correctly:
-```bash
-python3 model_paths.py
-```
-
-Expected output:
-```
-Local Model Paths:
-  Qwen2.5-1.5B: /home/benaaf/Desktop/BhashaLLM_Export/models/base_models/Qwen2.5-1.5B-Instruct/snapshots/...
-  Bangla-OCR:   /home/benaaf/Desktop/BhashaLLM_Export/models/base_models/Bangla-OCR-SFT/snapshots/...
-
-Adapter Paths:
-  Bangla LLM:   /home/benaaf/Desktop/BhashaLLM_Export/models/bangla_adapters/final_adapter
-  Instruct:     /home/benaaf/Desktop/BhashaLLM_Export/models/instruct_adapters/final_instruct_adapter
-  OCR:          /home/benaaf/Desktop/BhashaLLM_Export/models/ocr_adapters/banglawriting_adapter
-```
-
-## 🎯 Next Steps
-
-1. **Retrain OCR** with fixed scripts:
-   ```bash
-   python3 bhasha/ocr/train.py
-   ```
-
-2. **Evaluate Models**:
-   ```bash
-   python3 bhasha/eval/evaluate.py
-   python3 bhasha/eval/all_ocr.py
-   ```
-
-3. **Commit Code Changes** (models are ignored):
-   ```bash
-   git add .
-   git commit -m "Added local model support and fixed OCR pipeline"
-   git push origin main
-   ```
-
-## 📝 Important Notes
-
-- ✅ **No HuggingFace token needed** - all models are local
-- ✅ **No internet needed** - everything runs offline
-- ✅ **Git-safe** - models/ is in .gitignore
-- ✅ **Portable** - can copy entire folder to another machine
-- ✅ **Self-contained** - all dependencies in venv/
-
-## 🔄 Sharing Your Project
-
-To share this project with someone else:
-
-1. **Copy the entire folder** (including models/)
-2. **On the new machine**:
-   ```bash
-   cd BhashaLLM_Export
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   python3 test_models.py
-   ```
-
-That's it! Everything will work without any downloads.
-
-## 🎉 Summary
-
-Your BhashaLLM project is now:
-- ✅ Fully functional with all 3 models working
-- ✅ Completely self-contained (10.5GB total)
-- ✅ No external dependencies (no HF token needed)
-- ✅ Git-safe (large files ignored)
-- ✅ Ready for development and deployment!
+Code: MIT (see [`LICENSE`](LICENSE)).
+Self-collected handwriting dataset: CC BY 4.0 — see `DATA_CARD.md`.
+Third-party datasets and base models retain their own licenses.

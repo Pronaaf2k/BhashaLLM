@@ -1,0 +1,46 @@
+# Phase 2 - instruction tuning for short-answer grading with Bangla feedback.
+# Starts from the Phase 1 Bangla adapter.
+
+phase: 2_grading_sft
+base_model: Qwen/Qwen2.5-1.5B-Instruct
+init_adapter: models/bangla_adapters/final_adapter
+seed: 42
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_compute_dtype: float16
+  bnb_4bit_use_double_quant: true
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, v_proj]
+  task_type: CAUSAL_LM
+
+training:
+  learning_rate: 2.0e-4
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 4
+  max_steps: 500
+  num_train_epochs: 5
+  warmup_steps: 50
+  lr_scheduler_type: cosine
+  max_seq_length: 512
+  gradient_checkpointing: true
+  optim: adamw_torch
+
+data:
+  # 500 pairs total: 400 train / 100 val, seeded from 200 self-generated
+  # question-answer pairs and expanded with human-written feedback.
+  # A further 50 pairs were written afterwards and never used for tuning.
+  train: data/grading/train.jsonl        # 400
+  validation: data/grading/val.jsonl     # 100
+  heldout: data/grading/test.jsonl       # 50, untouched
+  chat_template: chatml
+
+logging:
+  summary_path: logs/phase2_summary.json
+  record_peak_vram: true
+  compute_epochs_covered: true

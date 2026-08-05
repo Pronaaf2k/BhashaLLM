@@ -1,0 +1,50 @@
+# Phase 1 - continued pre-training on Bangla literary text.
+# Hyperparameters are Table III of the paper unless a deviation is noted.
+# Nothing here should be transcribed into the paper by hand: the training
+# loop writes logs/phase1_summary.json and the paper is read out of that.
+
+phase: 1_bangla_pt
+base_model: Qwen/Qwen2.5-1.5B-Instruct
+seed: 42
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_compute_dtype: float16
+  bnb_4bit_use_double_quant: true
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, v_proj]
+  task_type: CAUSAL_LM
+
+training:
+  learning_rate: 2.0e-4
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 4      # effective batch 4
+  max_steps: 500
+  warmup_steps: 50
+  lr_scheduler_type: cosine
+  max_seq_length: 512
+  gradient_checkpointing: true
+  optim: adamw_torch
+  logging_steps: 10
+
+data:
+  corpus: data/splits/train.txt
+  eval_corpus: data/splits/val.txt
+  split_manifest: data/splits/           # 80/10/10 BY DOCUMENT, not sentence
+  packing: true
+
+# --- reconciliation note ---------------------------------------------
+# Sec. IV-C reports ~2,578 packed sequences and "roughly 0.8 of an epoch".
+# Those are inconsistent with the 5.28M-token training split in Table IV:
+#   5.28e6 / 512 = 10,312 sequences; 500 steps x 4 = 2,000 => 0.19 epochs.
+# The training loop MUST compute epochs_covered from len(train_ds) and
+# write it to the log. Do not carry 0.8 forward. See docs/ERRATA.md B2.
+logging:
+  summary_path: logs/phase1_summary.json
+  record_peak_vram: true
+  compute_epochs_covered: true
