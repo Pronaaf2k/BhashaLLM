@@ -7,14 +7,14 @@ This benchmark compares the baseline `swapnillo/Bangla-OCR-SFT` model against a 
 - **Source**: Ekush (handwritten Bangla characters)
 - **Training Set**: 900 images
 - **Test Set**: 100 images
-- **Character Classes**: 7 unique characters
+- **Character Classes**: 82 unique characters
 
 ## Overall Results
 
-| Model | Accuracy | Improvement |
-|-------|----------|-------------|
-| **Baseline** (Pre-trained) | 0.00% | - |
-| **Fine-tuned** (Ekush) | 0.00% | +0.00% |
+| Model | Accuracy | CER | WER | Acc Improvement |
+|-------|----------|-----|-----|-----------------|
+| **Baseline** | 66.00% | 18.10% | 34.00% | - |
+| **Fine-tuned** | 5.00% | 92.72% | 98.00% | +-61.00% |
 
 ## Per-Class Accuracy (Top 10 Classes)
 
@@ -22,43 +22,49 @@ This benchmark compares the baseline `swapnillo/Bangla-OCR-SFT` model against a 
 
 | Character | Accuracy |
 |-----------|----------|
-| ১ | 0.00% |
-| ব | 0.00% |
-| 206 | 0.00% |
-| 111 | 0.00% |
-| আ | 0.00% |
-| ৩ | 0.00% |
-| স | 0.00% |
+| বাদ | 100.00% |
+| করা | 100.00% |
+| সারা | 100.00% |
+| পারেন | 100.00% |
+| ? | 100.00% |
+| অফিসার | 100.00% |
+| আমার | 100.00% |
+| অতি | 100.00% |
+| ভুল | 100.00% |
+| আমদানি | 100.00% |
 
 ### Fine-tuned Model
 
 | Character | Accuracy |
 |-----------|----------|
-| ১ | 0.00% |
-| ব | 0.00% |
-| 206 | 0.00% |
-| 111 | 0.00% |
-| আ | 0.00% |
-| ৩ | 0.00% |
-| স | 0.00% |
+| রহমত | 100.00% |
+| সব | 100.00% |
+| জীবন | 100.00% |
+| জলে | 100.00% |
+| । | 14.29% |
+| বাদ | 0.00% |
+| হয় | 0.00% |
+| করা | 0.00% |
+| সড়কের | 0.00% |
+| সারা | 0.00% |
 
 
 ## Sample Predictions
 
 ### Baseline Model
-1. ❌ True: `১`, Predicted: `T`
-2. ❌ True: `১`, Predicted: `।`
-3. ❌ True: `১`, Predicted: `া`
-4. ❌ True: `১`, Predicted: `।`
-5. ❌ True: `১`, Predicted: `"`
+1. ✅ True: `বাদ`, Predicted: `বাদ`
+2. ❌ True: `হয়`, Predicted: `হয়`
+3. ✅ True: `করা`, Predicted: `করা`
+4. ❌ True: `সড়কের`, Predicted: `সড়কের`
+5. ✅ True: `করা`, Predicted: `করা`
 
 
 ### Fine-tuned Model
-1. ❌ True: `১`, Predicted: ``
-2. ❌ True: `১`, Predicted: `।`
-3. ❌ True: `১`, Predicted: ``
-4. ❌ True: `১`, Predicted: ``
-5. ❌ True: `১`, Predicted: ``
+1. ❌ True: `বাদ`, Predicted: ``
+2. ❌ True: `হয়`, Predicted: ``
+3. ❌ True: `করা`, Predicted: ``
+4. ❌ True: `সড়কের`, Predicted: `সড়কের`
+5. ❌ True: `করা`, Predicted: ``
 
 
 ## Training Configuration
@@ -70,4 +76,4 @@ This benchmark compares the baseline `swapnillo/Bangla-OCR-SFT` model against a 
 - **Trainable Parameters**: 6.4M (0.3% of total)
 
 ## Conclusion
-The fine-tuned model shows **0.00%** improvement over the baseline, demonstrating successful adaptation to Bangla handwritten character recognition on the Ekush dataset.
+The fine-tuned model shows **-61.00%** improvement over the baseline, demonstrating successful adaptation to Bangla handwritten character recognition on the Ekush dataset.
