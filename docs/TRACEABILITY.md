@@ -41,6 +41,8 @@ it is not maintained.
 | 1,500 self-collected pages, 3 writers | Sec. IV-B | `DATA_CARD.md` + `data/handwriting/manifest.csv` | manual | `MISSING` |
 | Per-writer identifiers | Sec. VII | `data/handwriting/manifest.csv` → `writer_id` | `python -m bhasha.data.manifest --template ...` then fill; `--validate` audits writer disjointness | `MISSING` (schema + validator now implemented) |
 | Text corpus provenance and licences | Refs [21]–[27] | `DATA_CARD.md` provenance table | manual | `MISSING` |
+| Corpus archive contents and size | Sec. IV-B, Table IV | `data/text_corpus_audit.json`, `data/text_raw.sha256` | `python scripts/audit_text_corpus.py --tokenizer Qwen/Qwen2.5-1.5B-Instruct` | `CORRECTED` — the committed archive is 58 KB against a claimed 6.6M tokens (ERRATA C8) |
+| Author-disjoint 80/10/10 split | Sec. IV-C | `data/splits/split_manifest.json` → `grouping` | `python -m bhasha.data.text_corpus --group-by author` | `CORRECTED` — the archive carries no author metadata, so the guarantee is unverifiable (ERRATA C8) |
 | OCR trained on Ekush + self-collected | Sec. IV-C | `bhasha/ocr/train.py`, `bhasha/eval/ocr_models.py`, `bhasha/scripts/model_paths.py` | loader read | `CORRECTED` — **trained on BanglaWriting; ERRATA A0** |
 
 ## Training
@@ -92,6 +94,7 @@ it is not maintained.
 
 | Claim | Paper | Evidence file | Command | Status |
 | --- | --- | --- | --- | --- |
+| Optional web frontend | Sec. III-F | `bhasha/app/static/index.html` | `BHASHA_ENABLE_UI=1 python main.py` → `/ui` | `TRACED` (was absent, ERRATA C6) |
 | Detection decoupled from recognition | Sec. III-A | `bhasha/ocr/hybrid_pipeline.py` | `--detector projection\|paddle\|none` | `TRACED` (was unimplemented, ERRATA C4) |
 | LLM correction stage exists | Sec. I contrib. 3, V-B | `bhasha/ocr/hybrid_pipeline.py` → `correct_line` | `python -m bhasha.ocr.hybrid_pipeline --image ...` | `TRACED` (was a stub, ERRATA C4) |
 | Table VII "Before" (28% CER, 0.68) | Table VII | `eval/ocr_cer.json` from an un-adapted run | `python test_models.py ocr --no-adapter ...` | `MISSING` (baseline path now implemented) |
@@ -139,6 +142,8 @@ repository. What is missing is data and compute, not code.
 | `eval/tokenizer_sanity.py` | added — Sec. IV-B sanity checks, fertility, conjunct/matra integrity |
 | `scripts/capture_oom_attempt.py` | added — captures `logs/oom_attempt.txt` |
 | `scripts/capture_footprint.sh` | added — writes `docs/footprint.txt` |
+| `scripts/audit_text_corpus.py` | added — extracts and audits `text dataset.rar` against Table IV |
+| `bhasha/app/routes_ui.py`, `static/index.html` | added — the opt-in Sec. III-F frontend |
 | `eval/{compute_bpc,ocr_cer,script_integrity,text_metrics,aggregate_human_eval}.py` | already present |
 
 ## Before tagging `v1.0-paper`
@@ -150,6 +155,8 @@ repository. What is missing is data and compute, not code.
 - [ ] `benchmarks/items/*.jsonl` committed so N is readable for Tables V and VI
 - [ ] `docs/environment_capture.txt` committed
 - [ ] `DATA_CARD.md` committed with per-writer identifiers
+- [ ] Corpus archive resolved: either the full 6.6M-token corpus is committed, or Table IV's figure is revised (ERRATA C8)
+- [ ] Author metadata added to the text corpus, or the Sec. IV-C author-disjointness claim withdrawn (ERRATA C8)
 - [ ] `LICENSE` and `CITATION.cff` committed
 - [ ] Repository description and topics set on GitHub
 - [ ] Tag pushed and archived for a DOI; DOI recorded in `README.md` and `CITATION.cff`

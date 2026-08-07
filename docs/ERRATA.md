@@ -395,8 +395,11 @@ differences between the phase losses as significant.
 | Documented scripts absent (2) | `test_models.py` named in Sec. III-F as the primary production interface; not in the repository | Present at the repository root. See C2 |
 | `bhasha.data` package absent | Imported by three modules; Phase-3 OCR training could not be imported at all | Added. See C2 |
 | Committed configs read by nothing | `configs/phase*.yaml` carried Table III and detailed reconciliation notes; no code loaded them | `bhasha/config.py` makes the YAML authoritative. See C2 |
-| Opaque data blob | `text dataset.rar`, no manifest, checksum, license or provenance | Replaced by extracted files + `data/text_raw.sha256` |
-| `.agent/workflows` and "Note for AI Assistants" in `DIRECTORY_STRUCTURE.md` | Reads to a sceptical visitor as evidence of generated rather than built work | Moved to `docs/`; not part of the reader-facing surface |
+| Opaque data blob | `text dataset.rar`, no manifest, checksum, license or provenance | **This row previously claimed the archive had been replaced by extracted files and a checksum. It had not — see C7.** `scripts/audit_text_corpus.py` now extracts it, writes `data/text_raw.sha256`, and audits it against Table IV. Findings in C8 |
+| `.agent/workflows` and "Note for AI Assistants" in `DIRECTORY_STRUCTURE.md` | Reads to a sceptical visitor as evidence of generated rather than built work | Moved to `docs/DIRECTORY_STRUCTURE.md` with the note removed and its four conventions preserved under a **Conventions** heading; a stub remains at the root so links do not break |
+| Web frontend absent | Sec. III-F describes an optional web interface; no HTML, JS, template dir or static mount existed | Added, opt-in behind `BHASHA_ENABLE_UI=1`. See C6 |
+| `environment.yml` unrunnable | CUDA 12.1 on a Blackwell card, no pins, Paddle as a core dependency | Corrected. See C10 |
+| Orphaned outputs | `merged_ocr_llm_app/outputs/` holds four reports with no producing code | Retained and recorded. See C9 |
 
 ### C1. Which dataset trained the OCR adapter — RESOLVED
 
@@ -521,6 +524,110 @@ describes a decision or a description written after the fact.
 **Nothing was removed.** The files are retained. Section VII lists
 retrieval as the first item of future work, which makes an existing
 harness an asset rather than a contradiction, provided it is labelled.
+
+### C6. The web frontend described in Section III-F did not exist
+
+Section III-F states:
+
+> A web frontend was added later as an optional interface for users who
+> prefer not to use a terminal; it talks to the same backend and is not
+> loaded unless explicitly opened, so it does not compete with the language
+> models for GPU memory.
+
+The repository contained no frontend of any kind: no HTML, no JavaScript,
+no template directory, no static-file mount, no `package.json`, and no
+Streamlit or Gradio entry point. The sentence had no artifact behind it.
+
+**Now.** `bhasha/app/static/index.html` plus `bhasha/app/routes_ui.py`.
+Each clause of the sentence is implemented rather than approximated: the
+page calls only `/api/v1/*` so there is no second inference path ("talks to
+the same backend"); the route is mounted **only** when `BHASHA_ENABLE_UI=1`
+so a default `python main.py` serves the API alone ("not loaded unless
+explicitly opened"); and it is one static file with no build step, npm, CDN
+or framework ("does not compete with the language models for GPU memory").
+
+### C7. `docs/ERRATA.md` itself contained an inaccurate row
+
+The group C table below claimed:
+
+| Defect | Previous state | Now |
+| --- | --- | --- |
+| Opaque data blob | `text dataset.rar`, no manifest, checksum, license or provenance | Replaced by extracted files + `data/text_raw.sha256` |
+
+**That did not happen.** `text dataset.rar` was still the only form the
+corpus existed in, no code extracted it, and `data/text_raw.sha256` was
+never produced. An errata that asserts a fix which was not made is worse
+than no errata, because it is the document a reader turns to precisely when
+they have stopped trusting the paper.
+
+The row has been corrected below, and `scripts/audit_text_corpus.py` now
+makes the claim true when run: it extracts the archive, writes
+`data/text_raw.sha256`, counts tokens, and compares the result to Table IV.
+
+### C8. What the corpus archive actually contains
+
+Auditing `text dataset.rar` surfaced three problems that bear directly on
+Section IV-B and Section IV-C.
+
+**The archive is 58 KB compressed.** Table IV states a 6.6M-token corpus.
+Bangla compresses well, but 6.6M tokens is on the order of 25–30 MB of
+UTF-8, which does not fit in 58 KB at any plausible ratio. Either the
+committed archive is a sample rather than the training corpus, or the 6.6M
+figure needs revising. Run `python scripts/audit_text_corpus.py
+--tokenizer Qwen/Qwen2.5-1.5B-Instruct` for the measured count; whatever it
+prints is the figure to cite. **The corpus behind Section IV-B is not
+currently reproducible from this repository.**
+
+**There is no author metadata at all.** The archive's 110 entries are named
+`text dataset/1.txt` … `N.txt`, with no author directories and no
+accompanying metadata. Section IV-C claims:
+
+> The 6.6M-token Bangla corpus was split 80/10/10 by document rather than
+> by sentence, so no work by the same author appears on both sides.
+
+Nothing in the committed corpus records which author wrote which file, so
+that guarantee cannot be reconstructed, verified, or reproduced.
+`bhasha/data/text_corpus.py` handles this honestly rather than silently: it
+groups by author when author information is present, and when it is not, it
+reports in `split_manifest.json` that the author-disjointness claim **does
+not hold** for the input it was given. Either add an author column and
+re-split, or withdraw the claim.
+
+**References [21] and [22] are not separable.** Two corpora are cited —
+Kazi Nazrul Islam and Rabindranath Tagore — but the archive has a single
+top-level directory. `DATA_CARD.md`'s per-source token counts cannot be
+filled in from this file.
+
+### C9. Orphaned evaluation outputs
+
+`merged_ocr_llm_app/outputs/` contains four files —
+`test_report_20260417_165123.{csv,json}` and
+`test_report_20260417_165130.{csv,json}` — and there is no
+`merged_ocr_llm_app` application anywhere in the repository. No script
+produces these reports and nothing reads them.
+
+They are retained; deleting evidence is worse than leaving it unexplained.
+But a reader cannot trace them to a command, so they should not be cited,
+and no figure in the paper depends on them. If they are the output of a
+script that lives outside this repository, committing that script would
+convert them from artifacts into evidence.
+
+### C10. `environment.yml` described an environment that could not run
+
+A third dependency file, disagreeing with both `requirements.txt` and the
+captured environment:
+
+- `pytorch-cuda=12.1`, which cannot target the RTX 5070 Ti. Blackwell is
+  compute capability sm_120 and needs CUDA 12.8 or later. This is the same
+  defect as A1, in a second file.
+- No version pins on the pip block at all, so `conda env create` produced a
+  different environment on every run and none of them matched
+  `requirements.txt`.
+- `paddlepaddle-gpu` and `paddleocr` as core dependencies, although group C
+  below records that PaddleOCR is not part of the methodology in the paper.
+
+Corrected: CUDA 12.8, pins matching `requirements.txt`, and the Paddle
+packages moved to a commented optional block with the reason attached.
 
 ### C3. The shipped API contradicts the offline-deployment claim
 

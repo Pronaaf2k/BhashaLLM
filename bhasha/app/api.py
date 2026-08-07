@@ -341,6 +341,18 @@ try:
 except Exception as _v1_exc:  # noqa: BLE001
     print(f"⚠️ /api/v1 router not mounted: {_v1_exc}")
 
+# Optional web frontend (paper Sec. III-F). Opt-in by design: the paper says
+# it "is not loaded unless explicitly opened", so it is mounted only when
+# BHASHA_ENABLE_UI=1. See bhasha/app/routes_ui.py.
+try:
+    from bhasha.app.routes_ui import ENV_FLAG, mount_ui
+    if mount_ui(app):
+        print("✅ Mounted optional web frontend at /ui")
+    else:
+        print(f"ℹ️  Web frontend not mounted (set {ENV_FLAG}=1 to enable /ui)")
+except Exception as _ui_exc:  # noqa: BLE001
+    print(f"⚠️ /ui not mounted: {_ui_exc}")
+
 
 if __name__ == '__main__':
     import uvicorn

@@ -646,6 +646,122 @@ def test_tokenizer_sanity_script_helpers():
     assert mod._script_of("বাংলা बांग्ला") == "mixed"
 
 
+# -------------------------------------------------------- web frontend
+
+
+def test_ui_is_opt_in_not_mounted_by_default(monkeypatch=None):
+    """Sec. III-F: the frontend 'is not loaded unless explicitly opened'.
+
+    Mounting it by default would contradict the sentence the file exists to
+    implement.
+    """
+    import os
+    from bhasha.app import routes_ui
+
+    saved = os.environ.pop(routes_ui.ENV_FLAG, None)
+    try:
+        assert routes_ui.ui_enabled() is False
+        for value in ("1", "true", "YES", "on"):
+            os.environ[routes_ui.ENV_FLAG] = value
+            assert routes_ui.ui_enabled() is True, value
+        os.environ[routes_ui.ENV_FLAG] = "0"
+        assert routes_ui.ui_enabled() is False
+    finally:
+        os.environ.pop(routes_ui.ENV_FLAG, None)
+        if saved is not None:
+            os.environ[routes_ui.ENV_FLAG] = saved
+
+
+def test_frontend_file_exists_and_calls_only_the_v1_api():
+    """Sec. III-F: it 'talks to the same backend'.
+
+    A second inference path in the page would be a second thing to keep in
+    sync with test_models.py, and the first place the two would diverge.
+    """
+    html = (ROOT / "bhasha/app/static/index.html").read_text(encoding="utf-8")
+    for endpoint in ("/api/v1/generate", "/api/v1/grade",
+                     "/api/v1/ocr", "/api/v1/status"):
+        assert endpoint in html, f"{endpoint} not called by the frontend"
+
+    # No build step, no framework, no third-party fetch. "Does not compete
+    # with the language models for GPU memory" only holds for a static file.
+    lowered = html.lower()
+    for forbidden in ("cdn.", "unpkg", "jsdelivr", "googleapis",
+                      "import react", "require("):
+        assert forbidden not in lowered, f"frontend pulls in {forbidden}"
+
+
+def test_frontend_script_check_exempts_the_danda():
+    """The page flags Devanagari drift; it must not flag the danda.
+
+    Same rule as eval/script_integrity.py and hybrid_pipeline.script_ok.
+    Three implementations of one definition is already one too many, so
+    the third is tested against the same cases.
+    """
+    html = (ROOT / "bhasha/app/static/index.html").read_text(encoding="utf-8")
+    assert "0x0964" in html and "0x0965" in html, \
+        "frontend script check does not exempt the danda"
+
+
+# ------------------------------------------------------- corpus audit
+
+
+@pytest.fixture(scope="module")
+def audit():
+    return _load("audit_text_corpus_mod", "scripts/audit_text_corpus.py")
+
+
+def test_audit_reads_entry_names_without_a_rar_tool(audit):
+    """RAR filenames are plain bytes in the header, so structure is
+    recoverable on a machine with no decoder installed."""
+    archive = ROOT / "text dataset.rar"
+    if not archive.exists():
+        pytest.skip("text dataset.rar not present")
+    names = audit.entry_names_from_bytes(archive.read_bytes())
+    assert len(names) > 50
+    assert any(n.endswith(".txt") for n in names)
+
+
+def test_audit_flags_missing_author_metadata(audit, tmp_path):
+    """Sec. IV-C claims an author-disjoint split. Numbered files cannot
+    support it, and the audit has to say so."""
+    root = tmp_path / "text dataset"
+    root.mkdir()
+    for i in range(1, 6):
+        (root / f"{i}.txt").write_text("বাংলা লেখা।" * 20, encoding="utf-8")
+
+    analysis = audit.analyse_extracted(tmp_path, None)
+    assert analysis["filenames_are_numeric_only"] is True
+    assert analysis["top_level_directories"] == ["text dataset"]
+
+    findings = " ".join(audit.compare_to_paper(analysis)["findings"])
+    assert "author" in findings.lower()
+    assert "same author appears on both sides" in findings
+
+
+def test_audit_flags_a_corpus_far_smaller_than_table_iv(audit, tmp_path):
+    root = tmp_path / "text dataset"
+    root.mkdir()
+    (root / "1.txt").write_text("বাংলা।" * 100, encoding="utf-8")
+
+    cmp_ = audit.compare_to_paper(audit.analyse_extracted(tmp_path, None))
+    assert cmp_["paper_claim"] == 6_600_000
+    assert cmp_["ratio_to_claim"] < 0.5
+    assert any("not reproducible" in f for f in cmp_["findings"])
+
+
+def test_audit_reports_no_findings_for_a_conforming_corpus(audit, tmp_path):
+    """The audit must not fire on a corpus that does satisfy the paper."""
+    for author in ("nazrul", "tagore"):
+        d = tmp_path / author
+        d.mkdir()
+        # ~3 chars/token, so ~3.3M tokens per author reaches Table IV's 6.6M.
+        (d / "collected.txt").write_text("ক" * 10_000_000, encoding="utf-8")
+
+    cmp_ = audit.compare_to_paper(audit.analyse_extracted(tmp_path, None))
+    assert cmp_["findings"] == [], cmp_["findings"]
+
+
 def test_model_registry_covers_the_nine_benchmarked_models():
     reg = json.loads((ROOT / "benchmarks/model_registry.json").read_text(
         encoding="utf-8"))

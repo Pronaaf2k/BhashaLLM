@@ -1,29 +1,107 @@
+# Conda environment for BhashaLLM.
+#
+# Kept in step with requirements.txt and docs/environment_capture.txt. If
+# the three ever disagree, the capture file wins: it is generated on the
+# machine, the other two are written by hand.
+#
+# Three things were wrong here before and are corrected below, all for the
+# same underlying reason recorded in docs/ERRATA.md A1 — the target card is
+# an RTX 5070 Ti, which is Blackwell (compute capability sm_120):
+#
+#   1. `pytorch-cuda=12.1` cannot target Blackwell. CUDA 12.8 or later is
+#      required. A conda solve that pins 12.1 produces an environment in
+#      which this project does not run on its own stated hardware.
+#   2. No version pins at all on the pip block, so `conda env create` gave
+#      a different environment every week and none of them matched
+#      requirements.txt. The pins now match that file.
+#   3. `paddlepaddle-gpu` and `paddleocr` were installed as core
+#      dependencies. docs/ERRATA.md group C records that no part of the
+#      methodology in the paper uses PaddleOCR; it belongs to the legacy
+#      pipeline in bhasha/ocr/pipeline.py. Moved to the optional block
+#      below so a default install does not pull a second deep-learning
+#      framework.
+#
+# Usage:
+#     conda env create -f environment.yml
+#     conda activate bhashallm
+#     bash scripts/capture_environment.sh    # verify what you actually got
+#
+# pip is an equally supported path and is the one the README documents:
+#     pip install -r requirements.txt
+
 name: bhashallm
+
 channels:
   - pytorch
   - nvidia
+  - conda-forge
   - defaults
+
 dependencies:
+  # 3.12 is fine; 3.10+ is the real floor. Pinned because an unpinned
+  # python lets conda pick a version some wheels below do not publish for.
   - python=3.12
-  - pytorch
-  - torchvision
-  - torchaudio
-  - pytorch-cuda=12.1
   - pip
+
+  # CUDA 12.8 for Blackwell (sm_120). See ERRATA A1 — the paper's
+  # Sec. IV-A version table describes an environment that cannot run on
+  # this card.
+  - pytorch-cuda=12.8
+
   - pip:
-    - transformers
-    - peft
-    - accelerate
-    - bitsandbytes
-    - datasets
-    - pandas
-    - pillow
-    - sentencepiece
-    - protobuf
-    - scipy
-    - scikit-learn
-    - tqdm
-    - paddlepaddle-gpu
-    - paddleocr
-    - jiwer
-    - qwen_vl_utils
+      # --- core model stack (mirrors requirements.txt) ------------------
+      - torch==2.10.0
+      - torchvision==0.25.0
+      - transformers==4.57.6
+      - peft==0.18.1
+      - bitsandbytes==0.49.1
+      - accelerate==1.12.0
+      - trl==0.28.0
+      - datasets==4.5.0
+      - tokenizers==0.22.2
+      - sentencepiece==0.2.1
+      - safetensors==0.7.0
+      - huggingface_hub==0.36.2
+
+      # --- vision / OCR -------------------------------------------------
+      - qwen-vl-utils==0.0.14
+      - pillow==12.1.0
+
+      # --- serving ------------------------------------------------------
+      - fastapi==0.128.7
+      - uvicorn==0.40.0
+      - pydantic==2.12.5
+
+      # --- evaluation ---------------------------------------------------
+      - jiwer==4.0.0
+      # Table VI (ROUGE) and the Sec. V-A BLEU/chrF++ figures could not be
+      # regenerated without this. See docs/ERRATA.md B8.
+      - sacrebleu>=2.4.0
+
+      # --- utilities ----------------------------------------------------
+      - numpy==2.4.2
+      - pandas==3.0.0
+      - scikit-learn==1.8.0
+      - PyYAML==6.0.2          # required: bhasha/config.py reads configs/*.yaml
+      - tqdm==4.67.3
+      - protobuf
+      - scipy
+
+# ---------------------------------------------------------------------------
+# Optional extras, deliberately NOT installed by default.
+#
+# opencv-python  needed only by the projection detector in
+#                bhasha/ocr/hybrid_pipeline.py and by the legacy
+#                bhasha/ocr/pipeline.py. The pipeline falls back to
+#                whole-image recognition without it.
+# paddleocr,     the legacy PaddleOCR+Tesseract pipeline and the optional
+# paddlepaddle   `--detector paddle` stage. Not part of the methodology in
+#                the paper (ERRATA group C). Installing these pulls a
+#                second deep-learning framework, and paddlepaddle and
+#                paddlepaddle-gpu were previously pinned to conflicting
+#                versions in the freeze.
+# rarfile        only for scripts/audit_text_corpus.py, and only when no
+#                unar/unrar/7z is on PATH.
+#
+#     pip install opencv-python paddleocr paddlepaddle rarfile
+# ---------------------------------------------------------------------------

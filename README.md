@@ -42,6 +42,14 @@ substantive ones:
   and their tokenizer is unrecorded. Bangla ROUGE is unusually easy to get
   silently wrong; see `eval/text_metrics.py`.
 
+- **The 6.6M-token corpus is not in this repository.** The committed
+  `text dataset.rar` is 58 KB compressed and holds ~110 numbered text
+  files with no author metadata, so neither Table IV's corpus size nor
+  Section IV-C's "no work by the same author appears on both sides" can be
+  reproduced from it. Measure it yourself with
+  `python scripts/audit_text_corpus.py`; findings in
+  [`docs/ERRATA.md`](docs/ERRATA.md) §C8.
+
 - **The OCR adapter was trained on BanglaWriting, not Ekush.** Section
   IV-C describes Phase 3 as Ekush plus self-collected pages. The Phase-3
   loader, the OCR evaluation script and the production model-path resolver
@@ -193,6 +201,16 @@ Serves two surfaces:
 | `/api/v1/*` | The pipeline described in the paper. `status`, `generate`, `grade`, `ocr`, `adapter`. Fully local, one resident adapter, Sec. IV-C decoding. |
 | `/api/analyze`, `/api/chat`, `/api/philosophical` | The original application: a ResNet-34 three-head grapheme classifier plus Gemini cloud calls. Retained and unchanged. |
 
+The optional web frontend of Sec. III-F is **opt-in**, because the paper
+says it "is not loaded unless explicitly opened":
+
+```bash
+BHASHA_ENABLE_UI=1 python main.py     # then open http://localhost:5000/ui
+```
+
+It is one static file that calls the same `/api/v1` endpoints as the CLI —
+no build step, no npm, no framework.
+
 The legacy endpoints are not part of the paper's methodology and two of
 them make outbound network calls, which sits awkwardly beside the offline
 deployment claim in Sections III-F and VI-F. Recorded in
@@ -213,6 +231,7 @@ they differ.
 | Sec. III-E — blind rating sheets | `python eval/make_rating_sheets.py --pred benchmarks/raw/*.jsonl --seed 42` | `human_eval/{rating_sheet.csv,rating_sheet.md,blinding_map.json}` |
 | Sec. III-F — local footprint | `bash scripts/capture_footprint.sh` | `docs/footprint.txt` |
 | Sec. IV-B — tokeniser sanity checks | `python eval/tokenizer_sanity.py --models Qwen/Qwen2.5-1.5B-Instruct facebook/xglm-1.7b` | `eval/tokenizer_sanity.json` |
+| Sec. IV-B — audit the corpus archive | `python scripts/audit_text_corpus.py --tokenizer Qwen/Qwen2.5-1.5B-Instruct` | `data/text_corpus_audit.json`, `data/text_raw.sha256` |
 | Sec. IV-B — corpus preprocessing and splits | `python -m bhasha.data.text_corpus --input data/raw/nazrul data/raw/tagore --out-dir data/splits --tokenizer Qwen/Qwen2.5-1.5B-Instruct` | `data/splits/{train,val,test}.txt`, `split_manifest.json` |
 | Sec. IV-C — Ekush stratified sample | `python -m bhasha.data.ekush_sampling --input data/processed/ekush_prepared/train.jsonl --n 6000 --out data/processed/ekush_sampled_6000.jsonl` | sample + stratification report |
 | Sec. IV-B / VI-D — handwriting manifest | `python -m bhasha.data.manifest --validate data/handwriting/manifest.csv` | writer-disjointness audit |
@@ -348,8 +367,10 @@ Every original command-line flag still works.
 bhasha/            core package (app, data, eval, llm, ocr, scripts, utils)
   config.py        Table III loader; makes configs/*.yaml authoritative
   data/            OCRDataset, corpus preprocessing, Ekush sampling, manifest
-  app/             FastAPI app, adapter manager, /api/v1 router
+  app/             FastAPI app, adapter manager, /api/v1 router, opt-in /ui
+  ocr/             legacy Paddle pipeline + the paper's hybrid pipeline
   utils/           run summaries (peak VRAM, epochs_covered), helpers
+scripts/           environment, footprint, OOM and corpus-archive capture
 configs/           one YAML per training phase
 eval/              metric implementations; each writes a JSON artifact
 benchmarks/        per-model raw generations, item sets, and the model registry

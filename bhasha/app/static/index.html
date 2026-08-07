@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<!--
+  BhashaLLM web frontend — paper Sec. III-F.
+
+      "A web frontend was added later as an optional interface for users who
+       prefer not to use a terminal; it talks to the same backend and is not
+       loaded unless explicitly opened, so it does not compete with the
+       language models for GPU memory."
+
+  Three properties of that sentence are load-bearing, and each is honoured
+  deliberately rather than incidentally:
+
+  1. "talks to the same backend" — every action here is a fetch against
+     /api/v1/*, the same endpoints test_models.py drives. There is no
+     inference logic in this file and no second code path to keep in sync.
+
+  2. "not loaded unless explicitly opened" — the route is opt-in. It is
+     mounted only when BHASHA_ENABLE_UI=1, so a default `python main.py`
+     serves the API alone. See bhasha/app/routes_ui.py.
+
+  3. "does not compete with the language models for GPU memory" — one
+     static HTML file, no build step, no npm, no CDN, no framework. The
+     server holds a file handle; the GPU never sees it.
+
+  Single file by design: adding a bundler to a research artifact costs a
+  reader more than it saves.
+-->
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BhashaLLM</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --line: #262b36;
+    --ink: #e6e8ee; --muted: #939bab; --accent: #5b8dd9; --warn: #d99a5b;
+    --ok: #6fbf8b; --err: #d96b6b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f7f8fa; --panel: #fff; --line: #e2e5ea;
+      --ink: #1a1d23; --muted: #5f6775; --accent: #2f6bc4;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  /* Bangla needs a font stack of its own; the Latin default renders
+     conjuncts and matras poorly or not at all on several platforms. */
+  .bn, textarea, .out {
+    font-family: "Noto Sans Bengali", "Nirmala UI", "Vrinda",
+                 "Shonar Bangla", "Kalpurush", system-ui, sans-serif;
+  }
+  header {
+    padding: 18px 22px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  h1 { font-size: 17px; margin: 0; font-weight: 620; letter-spacing: .2px; }
+  .sub { color: var(--muted); font-size: 12.5px; }
+  main { max-width: 1000px; margin: 0 auto; padding: 22px; }
+  nav { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+  nav button {
+    background: transparent; color: var(--muted); border: 1px solid var(--line);
+    padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 13.5px;
+  }
+  nav button[aria-selected="true"] {
+    background: var(--panel); color: var(--ink); border-color: var(--accent);
+  }
+  section[hidden] { display: none; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px; margin-bottom: 14px;
+  }
+  label { display: block; font-size: 12.5px; color: var(--muted); margin: 12px 0 5px; }
+  label:first-child { margin-top: 0; }
+  textarea, input, select {
+    width: 100%; background: var(--bg); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 7px; padding: 9px 11px;
+    font-size: 14.5px; font-family: inherit;
+  }
+  textarea { min-height: 82px; resize: vertical; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .row > * { flex: 1; min-width: 140px; }
+  button.go {
+    background: var(--accent); color: #fff; border: 0; border-radius: 7px;
+    padding: 10px 20px; font-size: 14px; cursor: pointer; margin-top: 14px;
+  }
+  button.go:disabled { opacity: .5; cursor: default; }
+  .out {
+    white-space: pre-wrap; word-break: break-word; margin-top: 14px;
+    padding: 14px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 7px; min-height: 46px; font-size: 15px;
+  }
+  .meta {
+    margin-top: 9px; font-size: 12px; color: var(--muted);
+    display: flex; gap: 16px; flex-wrap: wrap;
+  }
+  .err { color: var(--err); }
+  .ok { color: var(--ok); }
+  .warn { color: var(--warn); }
+  code { font-size: 12px; color: var(--muted); }
+  footer {
+    max-width: 1000px; margin: 0 auto; padding: 8px 22px 40px;
+    color: var(--muted); font-size: 12px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { padding: 5px 0; border-bottom: 1px solid var(--line); }
+  td:first-child { color: var(--muted); width: 46%; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>BhashaLLM</h1>
+  <span class="sub">Bangla generation, grading and handwritten OCR — local, one 16&nbsp;GB GPU</span>
+</header>
+
+<main>
+  <nav role="tablist">
+    <button role="tab" aria-selected="true"  data-tab="generate">Generate</button>
+    <button role="tab" aria-selected="false" data-tab="grade">Grade</button>
+    <button role="tab" aria-selected="false" data-tab="ocr">OCR</button>
+    <button role="tab" aria-selected="false" data-tab="status">Status</button>
+  </nav>
+
+  <!-- ---------------------------------------------------------- generate -->
+  <section id="generate">
+    <div class="panel">
+      <label for="g-prompt">Prompt (Bangla)</label>
+      <textarea id="g-prompt" class="bn"
+        placeholder="বাংলা সাহিত্যের ইতিহাস সম্পর্কে একটি সংক্ষিপ্ত অনুচ্ছেদ লিখুন।"></textarea>
+      <div class="row">
+        <div>
+          <label for="g-adapter">Adapter</label>
+          <select id="g-adapter">
+            <option value="">base model (no adapter)</option>
+            <option value="bangla" selected>bangla — Phase 1</option>
+            <option value="grading">grading — Phase 2</option>
+          </select>
+        </div>
+        <div>
+          <label for="g-tokens">Max new tokens</label>
+          <input id="g-tokens" type="number" value="256" min="1" max="2048">
+        </div>
+      </div>
+      <p class="sub" style="margin:12px 0 0">
+        Decoding is fixed at the paper's Sec. IV-C settings
+        (<code>temperature 0.7, top-p 0.9, repetition penalty 1.1</code>) so
+        results match the benchmark.
+      </p>
+      <button class="go" id="g-run">Generate</button>
+      <div class="out bn" id="g-out"></div>
+      <div class="meta" id="g-meta"></div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------- grade -->
+  <section id="grade" hidden>
+    <div class="panel">
+      <label for="q">Question</label>
+      <textarea id="q" class="bn" placeholder="রবীন্দ্রনাথ ঠাকুর কে ছিলেন?"></textarea>
+      <label for="ref">Reference answer</label>
+      <textarea id="ref" class="bn" placeholder="তিনি একজন বাঙালি কবি, ঔপন্যাসিক ও সংগীতস্রষ্টা।"></textarea>
+      <label for="ans">Student answer</label>
+      <textarea id="ans" class="bn" placeholder="তিনি একজন লেখক।"></textarea>
+      <button class="go" id="gr-run">Grade</button>
+      <div class="out bn" id="gr-out"></div>
+      <div class="meta" id="gr-meta"></div>
+    </div>
+  </section>
+
+  <!-- --------------------------------------------------------------- ocr -->
+  <section id="ocr" hidden>
+    <div class="panel">
+      <label for="o-file">Handwritten Bangla image</label>
+      <input id="o-file" type="file" accept="image/*">
+      <div class="row">
+        <div>
+          <label for="o-size">Input size (px)</label>
+          <select id="o-size">
+            <option value="256" selected>256 — as trained</option>
+            <option value="224">224 — 40 ms faster, 0.02 less confidence</option>
+          </select>
+        </div>
+        <div>
+          <label for="o-adapter">Model</label>
+          <select id="o-adapter">
+            <option value="true" selected>fine-tuned (Table VII "After")</option>
+            <option value="false">un-adapted base (Table VII "Before")</option>
+          </select>
+        </div>
+      </div>
+      <button class="go" id="o-run">Transcribe</button>
+      <div class="out bn" id="o-out"></div>
+      <div class="meta" id="o-meta"></div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ status -->
+  <section id="status" hidden>
+    <div class="panel">
+      <button class="go" id="s-run" style="margin-top:0">Refresh</button>
+      <div class="out" id="s-out"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Optional interface (paper Sec. III-F). Every action calls
+  <code>/api/v1/*</code> — the same endpoints as <code>test_models.py</code>.
+  Serving this page uses no GPU memory.
+</footer>
+
+<script>
+"use strict";
+
+const $ = (id) => document.getElementById(id);
+
+// ---- tabs -----------------------------------------------------------------
+document.querySelectorAll('nav button').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach((b) =>
+      b.setAttribute('aria-selected', String(b === btn)));
+    document.querySelectorAll('main > section').forEach((s) =>
+      s.hidden = (s.id !== btn.dataset.tab));
+  });
+});
+
+// ---- shared request helper ------------------------------------------------
+// Model loading is lazy on the server: the first request of a session pays
+// for loading the base model, which can take tens of seconds. Saying so
+// beats a spinner that looks hung.
+async function call(button, outEl, metaEl, fn) {
+  button.disabled = true;
+  outEl.textContent = 'Working… the first request loads the model and may take a while.';
+  metaEl.textContent = '';
+  const t0 = performance.now();
+  try {
+    const data = await fn();
+    return { data, wall: Math.round(performance.now() - t0) };
+  } catch (err) {
+    outEl.innerHTML = '<span class="err">' + escapeHtml(String(err)) + '</span>';
+    return null;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+async function postJSON(url, body) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const payload = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(payload.detail || (r.status + ' ' + r.statusText));
+  return payload;
+}
+
+// Flags a response that drifted into Devanagari — the failure mode the paper
+// spends Sec. V-C and VI-A on. Same definition as eval/script_integrity.py,
+// including the U+0964/U+0965 exemption: the danda sits in the Devanagari
+// block but is the correct Bangla sentence terminator, and a check without
+// the exemption flags every well-punctuated sentence.
+function scriptWarning(text) {
+  for (const ch of text || '') {
+    const cp = ch.codePointAt(0);
+    if (cp === 0x0964 || cp === 0x0965) continue;
+    if (cp >= 0x0900 && cp <= 0x097F) return 'contains Devanagari — script confusion';
+  }
+  return null;
+}
+
+function renderMeta(el, data, wall) {
+  const bits = [];
+  if (data.n_new_tokens != null) bits.push(data.n_new_tokens + ' tokens');
+  if (data.latency_ms != null) bits.push(data.latency_ms + ' ms server');
+  if (wall != null) bits.push(wall + ' ms round trip');
+  if (data.adapter) bits.push('adapter: ' + data.adapter);
+  if (data.confidence != null) bits.push('confidence ' + data.confidence);
+  const warn = scriptWarning(data.text);
+  el.innerHTML = bits.map((b) => '<span>' + escapeHtml(b) + '</span>').join('')
+    + (warn ? '<span class="warn">' + escapeHtml(warn) + '</span>' : '');
+}
+
+// ---- generate -------------------------------------------------------------
+$('g-run').addEventListener('click', async () => {
+  const prompt = $('g-prompt').value.trim() || $('g-prompt').placeholder;
+  const res = await call($('g-run'), $('g-out'), $('g-meta'), () =>
+    postJSON('/api/v1/generate', {
+      prompt,
+      adapter: $('g-adapter').value || null,
+      max_new_tokens: Number($('g-tokens').value) || 256,
+      return_logprobs: false,
+    }));
+  if (!res) return;
+  $('g-out').textContent = res.data.text || '(empty generation)';
+  renderMeta($('g-meta'), res.data, res.wall);
+});
+
+// ---- grade ----------------------------------------------------------------
+$('gr-run').addEventListener('click', async () => {
+  const pick = (el) => el.value.trim() || el.placeholder;
+  const res = await call($('gr-run'), $('gr-out'), $('gr-meta'), () =>
+    postJSON('/api/v1/grade', {
+      question: pick($('q')),
+      reference_answer: pick($('ref')),
+      student_answer: pick($('ans')),
+    }));
+  if (!res) return;
+  $('gr-out').textContent = res.data.text || '(empty)';
+  renderMeta($('gr-meta'), res.data, res.wall);
+});
+
+// ---- ocr ------------------------------------------------------------------
+$('o-run').addEventListener('click', async () => {
+  const file = $('o-file').files[0];
+  if (!file) { $('o-out').innerHTML = '<span class="err">Choose an image first.</span>'; return; }
+  const res = await call($('o-run'), $('o-out'), $('o-meta'), async () => {
+    const fd = new FormData();
+    fd.append('image', file);
+    const qs = new URLSearchParams({
+      image_size: $('o-size').value,
+      return_confidence: 'true',
+      use_adapter: $('o-adapter').value,
+    });
+    const r = await fetch('/api/v1/ocr?' + qs, { method: 'POST', body: fd });
+    const payload = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(payload.detail || (r.status + ' ' + r.statusText));
+    return payload;
+  });
+  if (!res) return;
+  $('o-out').textContent = res.data.text || '(no text recognised)';
+  renderMeta($('o-meta'), res.data, res.wall);
+});
+
+// ---- status ---------------------------------------------------------------
+async function refreshStatus() {
+  const out = $('s-out');
+  out.textContent = 'Loading…';
+  try {
+    const r = await fetch('/api/v1/status');
+    const d = await r.json();
+    const rows = [
+      ['Base model', d.base_model],
+      ['OCR base model', d.ocr_base_model],
+      ['Text base loaded', d.text_base_loaded],
+      ['OCR model loaded', d.ocr_model_loaded],
+      ['Active adapter', d.active_adapter ?? 'none'],
+      ['VRAM allocated', d.vram_allocated_gb != null ? d.vram_allocated_gb + ' GB' : 'n/a'],
+      ['Adapter swaps', d.n_swaps],
+      ['Offline', String(d.offline)],
+    ];
+    for (const [name, info] of Object.entries(d.known_adapters || {})) {
+      rows.push(['adapter: ' + name,
+        (info.present ? '✓ present' : '✗ missing') + ' — ' + info.path]);
+    }
+    out.innerHTML = '<table>' + rows.map(([k, v]) =>
+      '<tr><td>' + escapeHtml(k) + '</td><td>' + escapeHtml(String(v)) + '</td></tr>'
+    ).join('') + '</table>';
+  } catch (err) {
+    out.innerHTML = '<span class="err">' + escapeHtml(String(err)) + '</span>';
+  }
+}
+$('s-run').addEventListener('click', refreshStatus);
+refreshStatus();
+</script>
+</body>
+</html>
