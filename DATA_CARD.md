@@ -114,7 +114,8 @@ which applies to code only.
 
 | Dataset | Ref | Use | URL | Accessed | Licence | Size used |
 | --- | --- | --- | --- | --- | --- | --- |
-| Ekush | [28] | OCR training | github.com/ShahariarRabby/ekush | **`FILL`** | **`FILL`** | 6,000 images, stratified by grapheme root |
+| **BanglaWriting** | **uncited** | **OCR training — the committed adapter** | mendeley.com/datasets/hf6sf8zrkc | **`FILL`** | **`FILL`** | **`FILL`** — read from `data/processed/banglawriting/train.jsonl` |
+| Ekush | [28] | OCR training *as described in the paper* | github.com/ShahariarRabby/ekush | **`FILL`** | **`FILL`** | 6,000 images, stratified by grapheme root (`bhasha/data/ekush_sampling.py`) |
 | Bengali.AI graphemes | [29] | Labelling reference | kaggle.com/c/bengaliai-cv19 | **`FILL`** | Competition rules — **check redistribution terms** | reference only |
 | Kazi Nazrul Islam corpus | [21] | Pre-training | **`FILL`** | **`FILL`** | Public domain — **`FILL`** basis | **`FILL`** tokens |
 | Rabindranath Tagore corpus | [22] | Pre-training | **`FILL`** | **`FILL`** | Public domain — **`FILL`** basis | **`FILL`** tokens |
@@ -129,12 +130,40 @@ which applies to code only.
 > citation. Every **`FILL`** in the licence column is a redistribution
 > question that must be answered before release, not after.
 
+> **BanglaWriting is the dataset behind the committed OCR adapter, and the
+> paper does not cite it.** Section IV-C describes Phase 3 as Ekush plus
+> self-collected pages. The Phase-3 loader, the OCR evaluation script and
+> the production model-path resolver all point at
+> `data/processed/banglawriting` and `models/ocr_adapters/banglawriting_adapter`.
+> The full evidence table is in `docs/ERRATA.md` §A0. Its URL, access date,
+> licence and size must be filled in above before release, and it must be
+> added to the reference list. Redistributing or building on a dataset the
+> paper never names is the kind of omission that is cheap to fix now and
+> expensive later.
+
 **Ekush domain note.** Ekush is isolated handwritten *characters*; the
 self-collected material is running text. Roughly 85% of the OCR training
 set is therefore isolated characters while 100% of the test set is running
 text. This gap plausibly bears on the diacritic-placement errors in
 Section V-B, since isolated-character training under-specifies exactly
-that. See `docs/ERRATA.md` B12.
+that. See `docs/ERRATA.md` B12 — and note that the 85% figure describes
+the composition the *paper* claims, not the BanglaWriting run that
+produced the committed adapter.
+
+**Handwriting manifest.** `data/handwriting/manifest.csv` is the file that
+makes writer-disjoint evaluation possible. Generate the template and
+validate an existing manifest with:
+
+```bash
+python -m bhasha.data.manifest --template data/handwriting/manifest.csv
+python -m bhasha.data.manifest --validate data/handwriting/manifest.csv
+```
+
+The validator reports whether train and test actually share writers rather
+than taking Section VI-D's word for it. Required columns are `image_id`,
+`writer_id`, `split` and `source`; the recommended columns record the
+session, pen type and print-versus-cursive variation Section IV-B says was
+deliberately introduced but that nothing in the repository preserved.
 
 ---
 

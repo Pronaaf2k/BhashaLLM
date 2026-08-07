@@ -30,6 +30,63 @@ Items are grouped by what can still be done about them.
 
 ---
 
+## A0. The OCR training data in Section IV-C is wrong
+
+**This was C1, the document's highest-priority open item. It is now
+resolved, and the answer is the one that requires a correction to the
+paper rather than a rename in the repository.**
+
+Section IV-C states that OCR fine-tuning "applied the same QLoRA
+configuration to the vision encoder's attention layers using the Ekush
+dataset [28] plus the manually collected pages." Table IV gives the
+Phase-3 training split as 7,050 images, footnoted as "6,000 Ekush images
+plus 1,050 self-collected pages."
+
+The committed adapter was trained on **BanglaWriting**, a separate public
+handwritten Bangla dataset that the manuscript does not cite anywhere.
+
+**Evidence, all of it in the repository:**
+
+| File | Line | What it shows |
+| --- | --- | --- |
+| `bhasha/ocr/train.py` | `DEFAULT_DATA_DIR` | reads `data/processed/banglawriting` |
+| `bhasha/ocr/train.py` | `DEFAULT_OUTPUT_DIR` | writes `models/ocr_adapters/banglawriting_adapter` |
+| `bhasha/eval/ocr_models.py` | `adapter_path`, `test_data_path` | scores `banglawriting_adapter` against `data/processed/banglawriting/test.jsonl` |
+| `bhasha/scripts/model_paths.py` | `"ocr"` | resolves the production OCR adapter to `banglawriting_adapter` |
+| `bhasha/scripts/train_ocr_improved.py` | `data_sources` | combines Ekush **and** BanglaWriting, writing a separate `combined_ocr_adapter` |
+| `bhasha/scripts/debug_dataset_shapes.py` | `datasets` | lists Ekush and BanglaWriting as distinct prepared directories |
+
+The last two are what settle it. The repository can tell Ekush from
+BanglaWriting — they are separate prepared directories and there is a
+separate script that combines them into a differently-named adapter. The
+adapter the evaluation code and the production path both point at is the
+BanglaWriting one.
+
+**Consequences.**
+
+1. Section IV-C's description of the Phase-3 training data does not
+   describe the run behind the headline 28% → 12% CER result.
+2. BanglaWriting must be cited. It is absent from the reference list.
+3. Table IV's "6,000 Ekush images plus 1,050 self-collected pages"
+   footnote is unsupported by any committed artifact.
+4. Every downstream statement that depends on the training composition —
+   including the Ekush domain-gap discussion in B12 below — needs
+   re-examination against BanglaWriting's actual composition.
+
+**What was *not* changed.** The default paths in `bhasha/ocr/train.py` are
+left pointing at BanglaWriting, so the committed adapter stays
+reproducible. `configs/phase3_ocr_sft.yaml` describes the composition the
+paper claims; running with `--config` trains that instead. Both are now
+recorded in `logs/phase3_summary.json` on every run, via a
+`training_data_note` field, so the provenance travels with the artifact.
+
+**Recommended action.** If the camera-ready window is open, correct
+Section IV-C and Table IV and add the BanglaWriting citation. If it has
+closed, this entry is the correction. Do not describe the OCR training
+data from the manuscript without pointing at this entry.
+
+---
+
 ## Group A — correct in camera-ready if the window is open
 
 ### A1. Software versions in Section IV-A are wrong
@@ -304,6 +361,14 @@ gap, and it plausibly bears on the diacritic-placement errors reported in
 Section V-B, since diacritic position is exactly what isolated-character
 training under-specifies.
 
+**Amended in light of A0.** This entry was written against the training
+composition the manuscript describes. Since the committed adapter was in
+fact trained on BanglaWriting, the 85% figure does not describe the run
+behind the reported CER, and the domain gap has to be recomputed against
+BanglaWriting's actual composition rather than Ekush's. The general point
+— that an isolated-character training set under-specifies diacritic
+placement in running text — survives; the number attached to it does not.
+
 ### B13. Single seed, no variance
 
 Section IV-C states all runs used seed 42 and executed once, so reported
@@ -326,31 +391,72 @@ differences between the phase losses as significant.
 | No release or tag | `main` moves; a reader six months on sees different code than the paper describes | Tag `v1.0-paper` + archival DOI (see README) |
 | Dependency file is a whole-machine freeze | 185 pinned packages including `chromadb`, `langchain`, `sentence-transformers` (a retrieval stack, next to Section III-D explaining that retrieval was rejected), `paddleocr`, `paddlepaddle`, `paddlepaddle-gpu`, `paddlex`, `pytesseract` (three OCR engines the methodology never mentions), plus `agentmail`, `posthog`, `kubernetes`, `modelscope` | Split: `requirements.txt` (direct dependencies) and `requirements-full.lock` (the freeze, preserved) |
 | Conflicting pins | `paddlepaddle==3.3.0` and `paddlepaddle-gpu==2.6.2` pinned simultaneously | Neither is a pipeline dependency; both confined to the lock file |
-| OCR adapter name contradicts the data description | `models/ocr_adapters/banglawriting_adapter` vs Section IV-C's Ekush + self-collected | **Unresolved — see below** |
+| OCR adapter name contradicts the data description | `models/ocr_adapters/banglawriting_adapter` vs Section IV-C's Ekush + self-collected | **Resolved: the adapter was trained on BanglaWriting. The manuscript is wrong, not the directory name. See [A0](#a0-the-ocr-training-data-in-section-iv-c-is-wrong)** |
+| Documented scripts absent (2) | `test_models.py` named in Sec. III-F as the primary production interface; not in the repository | Present at the repository root. See C2 |
+| `bhasha.data` package absent | Imported by three modules; Phase-3 OCR training could not be imported at all | Added. See C2 |
+| Committed configs read by nothing | `configs/phase*.yaml` carried Table III and detailed reconciliation notes; no code loaded them | `bhasha/config.py` makes the YAML authoritative. See C2 |
 | Opaque data blob | `text dataset.rar`, no manifest, checksum, license or provenance | Replaced by extracted files + `data/text_raw.sha256` |
 | `.agent/workflows` and "Note for AI Assistants" in `DIRECTORY_STRUCTURE.md` | Reads to a sceptical visitor as evidence of generated rather than built work | Moved to `docs/`; not part of the reader-facing surface |
 
-### C1. Unresolved: which dataset trained the OCR adapter
+### C1. Which dataset trained the OCR adapter — RESOLVED
 
-The committed adapter is named `banglawriting_adapter`. BanglaWriting is a
-separate, well-known public handwritten Bangla dataset that the manuscript
-does not cite anywhere. Section IV-C states the OCR model was fine-tuned
-on Ekush plus 1,050 self-collected pages.
+**Resolved. Promoted to [A0](#a0-the-ocr-training-data-in-section-iv-c-is-wrong)
+at the top of this document.**
 
-**This must be resolved by opening the Phase-3 training script and reading
-which loader it calls.** Two outcomes, requiring very different responses:
+The Phase-3 loader was opened and read. The second of the two outcomes
+this entry anticipated is the one that obtains: the committed adapter was
+trained on BanglaWriting, not on Ekush plus self-collected pages, so
+Section IV-C is wrong about the training data behind the headline OCR
+result. BanglaWriting must be cited. The evidence table is in A0.
 
-- *The name is legacy*, left over from an earlier experiment, and the
-  committed adapter was trained on Ekush plus self-collected pages.
-  Action: rename the directory, note it here, done.
-- *The adapter was in fact trained on BanglaWriting.* Action: Section IV-C
-  is wrong about the training data behind the headline OCR result.
-  BanglaWriting must be cited and described, and this errata must say so
-  prominently.
+This entry is kept rather than deleted so that a reader who saw the
+earlier state can follow what changed and why.
 
-Until this is checked, the OCR training-data description in Section IV-C
-should be treated as unverified. It is the single highest-priority open
-item in this document.
+---
+
+### C2. Components the paper describes that the repository did not contain
+
+Each of these was named in the manuscript or in this repository's own
+documentation, and no code implemented it. All are now present. Nothing
+that previously existed was removed to make room for any of them.
+
+| Component | Paper location | Previous state | Now |
+| --- | --- | --- | --- |
+| `bhasha.data` package | — | Imported by `bhasha/ocr/train.py`, `bhasha/scripts/train_ocr_improved.py` and `bhasha/scripts/debug_dataset_shapes.py`; **absent**, so Phase 3 raised `ModuleNotFoundError` on import | `bhasha/data/dataset.py` supplies `OCRDataset` and `collate_fn` |
+| `--config` training | README, "Reproducing the paper" | `configs/phase*.yaml` were committed but no code read them; the documented command did not work | `bhasha/config.py`; all three trainers accept `--config` |
+| Table III hyperparameters | Table III | Trainers hardcoded seven LoRA target modules, `paged_adamw_32bit`, no LR schedule, no seed, 1024-token context | Defaults are now Table III (`q_proj, v_proj`, AdamW, cosine after 50 warm-up steps, seed 42, 512 tokens). `--target-modules legacy` restores the previous set |
+| Per-phase run summaries | README logging block; `docs/TRACEABILITY.md` | No code wrote `logs/phase*_summary.json`, so every row pointing at it was unbacked | `bhasha/utils/run_summary.py`; written by all three phases |
+| `epochs_covered` computed | B2, `configs/phase1_bangla_pt.yaml` | Config instructed that it be computed; nothing computed it | Computed from `len(train_ds)` and logged |
+| Sequence packing to 512 | Sec. IV-C | Phase 1 padded each line to full length instead of packing | `pack_sequences` in `bhasha/llm/train.py`, controlled by `data.packing` |
+| NFKC + Latin stripping + 80/10/10 by document | Sec. IV-B, IV-C | No preprocessing code of any kind | `bhasha/data/text_corpus.py` |
+| Ekush stratified sampling by grapheme root | Sec. IV-C | `ekush_images: 6000` recorded in the config; no sampler | `bhasha/data/ekush_sampling.py`, with a guaranteed floor per root so rare conjuncts actually survive |
+| Handwriting manifest with `writer_id` | Sec. VII; `configs/phase3_ocr_sft.yaml` | Referenced by three traceability rows and by `eval/ocr_cer.py --group-by`; no schema or validator | `bhasha/data/manifest.py` |
+| OCR-correction rates | Sec. V-B | Reported without denominators (B11) | `eval/ocr_correction.py`, every denominator reported |
+| Confidence score | Table VII | Undefined quantity (B11) | `eval/confidence.py` defines it as `exp(mean log p)` and reports calibration error alongside |
+| Latency at a stated token budget | Sec. V-C | No benchmark script; B3 records the missing budget | `eval/latency.py`, which requires `--max-new-tokens` |
+| Energy / CO2 recompute | Sec. VI-F | B4 records the contradicted latency and unstated grid factor | `eval/energy.py`, which requires `--grid-factor` and `--grid-source` |
+| Per-model quantisation record | B10 | `benchmarks/model_registry.json` named in the README; file absent | Present, with `FILL` markers for the fields only the authors can supply |
+| `test_models.py` | Sec. III-F | Named as "the primary production interface"; absent from the repository | Present at the repository root; `main.py` unchanged |
+| Single-resident-adapter runtime | Sec. III-F | The FastAPI app served a ResNet-34 classifier and proxied to the Gemini cloud API; no adapter was loaded or swapped | `bhasha/app/adapter_manager.py` + `bhasha/app/routes_v1.py`, mounted at `/api/v1` alongside the untouched legacy endpoints |
+
+### C3. The shipped API contradicts the offline-deployment claim
+
+Sections III-F and VI-F describe a deployment that runs entirely on one
+local GPU, and Section VI-F builds an argument on it: local deployment
+"lets students, teachers, and small developers work with Bangla-language
+AI tools without depending on cloud APIs or continuous network access."
+
+`bhasha/app/api.py` as committed calls `google.generativeai` from
+`/api/chat` and `/api/philosophical`, and its `/api/analyze` endpoint
+serves a ResNet-34 three-head grapheme classifier — an architecture that
+appears nowhere in the paper and is not any of the three QLoRA adapters.
+
+Those endpoints have **not** been removed; they are working functionality
+and remain mounted. The paper-faithful surface is added beside them at
+`/api/v1`, is fully local, and reports `"offline": true` from
+`/api/v1/status`. A reader reproducing Section III-F should use `/api/v1`
+or `test_models.py`. A reader benchmarking the shipped API should know
+that two of its endpoints make outbound network calls.
 
 ---
 

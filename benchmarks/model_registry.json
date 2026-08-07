@@ -1,0 +1,188 @@
+{
+  "_about": {
+    "purpose": "Per-model record of how each of the nine benchmarked architectures was actually served.",
+    "why_this_file_exists": "docs/ERRATA.md B10: Gemma-2-9B, Mistral-Nemo-12B, Llama-3-8B, Llama-3.1-8B and Llama-3.2-11B cannot be served in fp16 on 16 GB and were therefore quantised, but the manuscript reports no format or bit width for any of them. Quantisation materially affects both output quality and script integrity, so an unrecorded quantisation is a confound running through the entire nine-model benchmark of Tables V, VI and VII.",
+    "how_to_use": "Fill quantisation, runtime, revision and served_on for every model before citing any cross-model comparison. Fields marked FILL are unverified. The presence of llama_cpp/ in this repository indicates GGUF for at least some models, but which ones, and at what bit width, is not recorded anywhere in the repository or the paper.",
+    "schema": {
+      "model_id": "Hugging Face id, GGUF filename, or local path as served",
+      "parameters_b": "billions of parameters, per Table I",
+      "quantisation": "one of: fp16 | bf16 | nf4 | int8 | Q4_K_M | Q5_K_M | Q8_0 | FILL",
+      "runtime": "transformers+bitsandbytes | llama.cpp | FILL",
+      "revision": "commit hash or GGUF build; a model id alone is not a version",
+      "context_length": "max context used at benchmark time",
+      "vram_gb": "measured resident VRAM, or null if not measured",
+      "role": "what the model was used for in the paper",
+      "served_on": "ISO date the generations in benchmarks/raw/ were produced",
+      "notes": "anything that would change how a reader reads the numbers"
+    },
+    "traceability": "docs/TRACEABILITY.md, row 'Quantisation of the 9 models'."
+  },
+
+  "decoding": {
+    "_source": "Paper Sec. IV-C. Held constant across all nine models so comparisons are not confounded by sampling.",
+    "text": {
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "repetition_penalty": 1.1,
+      "max_new_tokens": 256
+    },
+    "ocr": {
+      "strategy": "greedy",
+      "max_new_tokens": 128
+    },
+    "latency_measurements": {
+      "max_new_tokens": 100,
+      "_note": "docs/ERRATA.md B3: Sec. V-C's 1450 ms / 69 tok/s and 680 ms / 147 tok/s both imply a 100-token budget, not the 256 used for quality evaluation. Latency figures must be compared only against other figures at the same budget."
+    },
+    "prompt_language": {
+      "value": "bangla_only",
+      "_source": "Paper Sec. IV-C: an English instruction wrapper 'made language reversion markedly more likely in the smaller models'."
+    }
+  },
+
+  "models": [
+    {
+      "model_id": "Qwen/Qwen2.5-1.5B-Instruct",
+      "family": "Qwen",
+      "parameters_b": 1.5,
+      "quantisation": "nf4",
+      "runtime": "transformers+bitsandbytes",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "Phase 1 + Phase 2 QLoRA base; lightweight generation alternative (Sec. III-B)",
+      "served_on": "FILL",
+      "notes": "Selected over XGLM-1.7B on perplexity in Sec. III-B; see docs/ERRATA.md B6 and eval/compute_bpc.py for the tokenizer-independent form of that comparison. Table VI records 23% script confusion for this model."
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-3B-Instruct",
+      "family": "Qwen",
+      "parameters_b": 3,
+      "quantisation": "FILL",
+      "runtime": "FILL",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "benchmark only (Table I: mid-range edge-device fit)",
+      "served_on": "FILL",
+      "notes": "Table VI records mixed Bangla/Devanagari output."
+    },
+    {
+      "model_id": "google/gemma-2-2b-it",
+      "family": "Gemma",
+      "parameters_b": 2,
+      "quantisation": "FILL",
+      "runtime": "FILL",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "benchmark only (Table I: high-efficiency small model)",
+      "served_on": "FILL",
+      "notes": "Table VI records English (incorrect) output language."
+    },
+    {
+      "model_id": "google/gemma-2-9b-it",
+      "family": "Gemma",
+      "parameters_b": 9,
+      "quantisation": "FILL",
+      "runtime": "FILL",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "benchmark only (Table I: reasoning-focused)",
+      "served_on": "FILL",
+      "notes": "Cannot be served in fp16 on 16 GB. Table II records LoRA r=16 in fp16 failing at load time on this card. One of three models that held correct Bangla per Sec. V-A."
+    },
+    {
+      "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
+      "family": "Mistral",
+      "parameters_b": 7,
+      "quantisation": "FILL",
+      "runtime": "FILL",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "benchmark only (Table I: strong instruction following)",
+      "served_on": "FILL",
+      "notes": "Worst OCR-correction pattern in the set per Sec. V-B: 35% correction rate against a 30% over-correction rate. See eval/ocr_correction.py for the denominators those rates need."
+    },
+    {
+      "model_id": "mistralai/Mistral-Nemo-Instruct-2407",
+      "family": "Mistral",
+      "parameters_b": 12,
+      "quantisation": "FILL",
+      "runtime": "FILL",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "benchmark only (Table I: 128k context window)",
+      "served_on": "FILL",
+      "notes": "Cannot be served in fp16 on 16 GB. Table VI records mixed (unstable) output language."
+    },
+    {
+      "model_id": "meta-llama/Meta-Llama-3-8B-Instruct",
+      "family": "Llama",
+      "parameters_b": 8,
+      "quantisation": "FILL",
+      "runtime": "FILL",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "benchmark only (Table I: standard baseline)",
+      "served_on": "FILL",
+      "notes": "Cannot be served in fp16 on 16 GB."
+    },
+    {
+      "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+      "family": "Llama",
+      "parameters_b": 8,
+      "quantisation": "FILL",
+      "runtime": "FILL",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "benchmark; second-best on the human rubric (12/15, Table V)",
+      "served_on": "FILL",
+      "notes": "Cannot be served in fp16 on 16 GB."
+    },
+    {
+      "model_id": "meta-llama/Llama-3.2-11B-Vision-Instruct",
+      "family": "Llama",
+      "parameters_b": 11,
+      "quantisation": "FILL",
+      "runtime": "FILL",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "primary generation and translation model (Sec. III-B); 14/15 on the human rubric",
+      "served_on": "FILL",
+      "notes": "IMPORTANT: evaluated by quantised INFERENCE only. No QLoRA fine-tuning of this model was performed -- see docs/ERRATA.md B1. Table II's 'used here' row and the 9.4 GB peak are a feasibility analysis, not a record of a run."
+    },
+    {
+      "model_id": "facebook/xglm-1.7b",
+      "family": "XGLM",
+      "parameters_b": 1.7,
+      "quantisation": "FILL",
+      "runtime": "FILL",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "base-model selection comparison only (Sec. III-B); not one of the nine benchmarked architectures in Table I",
+      "served_on": "FILL",
+      "notes": "Reported at perplexity 73.15 against Qwen-2.5-1.5B's 3.8. Per-token perplexity is not comparable across tokenizers; regenerate with eval/compute_bpc.py. See docs/ERRATA.md B6."
+    },
+    {
+      "model_id": "swapnillo/Bangla-OCR-SFT",
+      "family": "Qwen-VL",
+      "parameters_b": null,
+      "quantisation": "nf4",
+      "runtime": "transformers+bitsandbytes",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "Phase 3 QLoRA OCR base (Sec. IV-C)",
+      "served_on": "FILL",
+      "notes": "Qwen3-VL-style architecture. The committed adapter was trained on BanglaWriting, not the Ekush + self-collected composition Sec. IV-C describes -- see docs/ERRATA.md C1."
+    }
+  ]
+}

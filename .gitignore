@@ -60,3 +60,36 @@ trainedmodels/
 # But allow LoRA adapter weights and training outputs in the vlm_ocr directory
 !training/vlm_ocr/outputs/**/adapter_model.safetensors
 !training/vlm_ocr/outputs/**/training_args.bin
+
+# --- reproducibility artifacts -----------------------------------------
+# `data/` and `models/` above are ignored wholesale because they hold tens
+# of gigabytes of images and weights. But the small text files inside them
+# are exactly the evidence docs/TRACEABILITY.md points at: a manifest, a
+# split record and a checksum list are a few kilobytes each, and a
+# repository that ignores them cannot support the claims in the paper.
+# The negations below re-include only those.
+!data/
+data/*
+!data/splits/
+data/splits/*
+!data/splits/split_manifest.json
+!data/splits/text_raw.sha256
+!data/handwriting/
+data/handwriting/*
+!data/handwriting/manifest.csv
+!data/grading/
+data/grading/*
+!data/grading/*.jsonl
+
+# Per-phase training summaries: peak VRAM, computed epochs_covered, losses.
+# Written by bhasha/utils/run_summary.py; cited by docs/TRACEABILITY.md.
+!logs/phase*_summary.json
+
+# Evaluation artifacts. Each is a few kilobytes of JSON and each is the
+# evidence file for a numbered claim in the paper.
+!eval/*.json
+!benchmarks/
+!benchmarks/**/*.json
+!benchmarks/**/*.jsonl
+!human_eval/*.csv
+!human_eval/*.json

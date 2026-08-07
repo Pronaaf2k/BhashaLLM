@@ -42,6 +42,13 @@ substantive ones:
   and their tokenizer is unrecorded. Bangla ROUGE is unusually easy to get
   silently wrong; see `eval/text_metrics.py`.
 
+- **The OCR adapter was trained on BanglaWriting, not Ekush.** Section
+  IV-C describes Phase 3 as Ekush plus self-collected pages. The Phase-3
+  loader, the OCR evaluation script and the production model-path resolver
+  all point at `data/processed/banglawriting`. BanglaWriting is not cited
+  anywhere in the paper. This was the repository's highest-priority open
+  item and is now resolved: [`docs/ERRATA.md`](docs/ERRATA.md) §A0.
+
 Full list with reasoning: [`docs/ERRATA.md`](docs/ERRATA.md).
 
 ---
@@ -104,15 +111,57 @@ runtime, so the 6.9 GB of base weights is not duplicated per task.
 
 ## Running it
 
-The entry point is `main.py`, which serves the FastAPI application:
+Two interfaces. Section III-F of the paper names `test_models.py` as the
+primary production interface; `main.py` serves the HTTP API.
+
+### `test_models.py` — the CLI (paper Sec. III-F)
+
+Applies ChatML formatting for the grading model and the correct resizing
+and normalisation for the OCR model automatically, so you do not need to
+know either model's input format. Only the base model and the currently
+needed adapter are held in memory.
+
+```bash
+python test_models.py status                       # what is loaded, VRAM, adapters on disk
+
+python test_models.py generate --adapter bangla \
+    --prompt "বাংলা সাহিত্যের ইতিহাস সম্পর্কে লিখুন।"
+
+python test_models.py grade \
+    --question "রবীন্দ্রনাথ ঠাকুর কে ছিলেন?" \
+    --reference "তিনি একজন বাঙালি কবি ও সাহিত্যিক।" \
+    --answer   "তিনি একজন লেখক।"
+
+python test_models.py ocr --image page.png --confidence
+python test_models.py chat                         # REPL; /adapter <name> swaps live
+```
+
+Batch OCR writes the JSONL the evaluation scripts read, so inference feeds
+straight into `eval/`:
+
+```bash
+python test_models.py ocr --manifest data/handwriting/manifest.csv \
+    --split test --confidence --out eval/ocr_predictions.jsonl
+```
+
+### `main.py` — the API
 
 ```bash
 python main.py                     # or: uvicorn main:app --reload
 ```
 
-Section III-F of the paper describes `test_models.py` as the primary
-production interface. That script is not in this repository; `main.py` is
-the entry point. Recorded in `docs/ERRATA.md` group C.
+Serves two surfaces:
+
+| Prefix | What it is |
+| --- | --- |
+| `/api/v1/*` | The pipeline described in the paper. `status`, `generate`, `grade`, `ocr`, `adapter`. Fully local, one resident adapter, Sec. IV-C decoding. |
+| `/api/analyze`, `/api/chat`, `/api/philosophical` | The original application: a ResNet-34 three-head grapheme classifier plus Gemini cloud calls. Retained and unchanged. |
+
+The legacy endpoints are not part of the paper's methodology and two of
+them make outbound network calls, which sits awkwardly beside the offline
+deployment claim in Sections III-F and VI-F. Recorded in
+`docs/ERRATA.md` §C3. Reproduce Section III-F against `/api/v1` or the
+CLI.
 
 ## Reproducing the paper
 
@@ -122,15 +171,32 @@ they differ.
 
 | Paper location | Command | Output |
 | --- | --- | --- |
+| Sec. IV-B — corpus preprocessing and splits | `python -m bhasha.data.text_corpus --input data/raw/nazrul data/raw/tagore --out-dir data/splits --tokenizer Qwen/Qwen2.5-1.5B-Instruct` | `data/splits/{train,val,test}.txt`, `split_manifest.json` |
+| Sec. IV-C — Ekush stratified sample | `python -m bhasha.data.ekush_sampling --input data/processed/ekush_prepared/train.jsonl --n 6000 --out data/processed/ekush_sampled_6000.jsonl` | sample + stratification report |
+| Sec. IV-B / VI-D — handwriting manifest | `python -m bhasha.data.manifest --validate data/handwriting/manifest.csv` | writer-disjointness audit |
 | Sec. III-B — base model selection | `python eval/compute_bpc.py --models Qwen/Qwen2.5-1.5B-Instruct facebook/xglm-1.7b --corpus data/splits/test.txt` | `eval/bpc_comparison.json` |
 | Sec. IV-A — environment | `bash scripts/capture_environment.sh` | `docs/environment_capture.txt` |
-| Table IV — training phases | `python -m bhasha.llm.train --config configs/phase1_bangla_pt.yaml` (likewise phases 2, 3) | `logs/phase{1,2,3}_summary.json` |
+| Table IV — training phases | `python -m bhasha.llm.train --config configs/phase1_bangla_pt.yaml` (then `bhasha.llm.train_instruct` and `bhasha.ocr.train` with phases 2 and 3) | `logs/phase{1,2,3}_summary.json` |
 | Table VI — summarisation | `python eval/text_metrics.py --pred benchmarks/raw/<model>.jsonl` | `eval/rouge_results.json` |
 | Sec. V-A — BLEU / chrF++ | same command; requires `sacrebleu` | signatures included in output |
 | Sec. V-C — script integrity | `python eval/script_integrity.py benchmarks/raw/*.jsonl --out eval/script_integrity.json` | `eval/script_integrity.json` |
 | Table VII — OCR CER | `python eval/ocr_cer.py --pred eval/ocr_predictions.jsonl --manifest data/handwriting/manifest.csv --group-by writer_id` | `eval/ocr_cer.json` |
 | Sec. V-B — grapheme breakdown | same command | `by_grapheme_category` in the same file |
+| Sec. V-B — OCR correction rates | `python eval/ocr_correction.py --pred benchmarks/raw/ocr_correction.jsonl` | `eval/ocr_correction.json`, every denominator reported |
+| Table VII — confidence score | `python eval/confidence.py --pred eval/ocr_predictions.jsonl` | `eval/confidence.json` + calibration error |
+| Sec. V-C — latency | `python eval/latency.py --mode local --models <ids> --max-new-tokens 100 --load-4bit` | `benchmarks/latency.json` |
+| Sec. VI-F — energy / CO2 | `python eval/energy.py --from-latency-json benchmarks/latency.json --grid-factor <x> --grid-source "<cite>"` | `eval/energy.json` |
 | Table V — human evaluation | `python eval/aggregate_human_eval.py --ratings human_eval/ratings.csv` | `human_eval/alpha_by_dimension.json` |
+| Sec. IV–V — how each model was served | fill the `FILL` fields | `benchmarks/model_registry.json` |
+
+Two of these refuse to run without an argument the paper omitted, on
+purpose. `eval/latency.py` requires `--max-new-tokens`, because Section
+V-C's figures imply a 100-token budget while Section IV-C fixes decoding at
+256 and the paper never says which applies (`docs/ERRATA.md` B3).
+`eval/energy.py` requires `--grid-factor` and `--grid-source`, because the
+20 g CO2 figure implies an uncited carbon intensity below published
+Bangladesh values (`docs/ERRATA.md` B4). Both would rather fail than emit
+a number with an anonymous constant behind it.
 
 Training runs log peak VRAM and computed epoch coverage, so Table II and
 Table IV are read out of the logs rather than typed:
@@ -192,18 +258,65 @@ Text corpora are drawn from public-domain literary archives and Kaggle
 datasets, each carrying its own license. The data card lists URL, access
 date, license and checksum per source.
 
+## Training
+
+All three phases read their configuration from `configs/`, which carries
+the paper's Table III verbatim plus the two Phase-3 deviations Section IV-C
+documents (2,000 steps rather than 500; learning rate 1e-4 rather than
+2e-4).
+
+```bash
+python -m bhasha.llm.train          --config configs/phase1_bangla_pt.yaml
+python -m bhasha.llm.train_instruct --config configs/phase2_grading_sft.yaml
+python -m bhasha.ocr.train          --config configs/phase3_ocr_sft.yaml
+```
+
+Print a resolved configuration without training anything:
+
+```bash
+python -m bhasha.config --config configs/phase1_bangla_pt.yaml
+python -m bhasha.llm.train --config configs/phase1_bangla_pt.yaml --print-config
+```
+
+Resolution order is **command-line flag > `--config` YAML > Table III
+default**, so every hyperparameter has one visible source. Each run writes
+`logs/phase{1,2,3}_summary.json` containing the measured peak VRAM, the
+final losses, the exact hyperparameters, the captured library versions, and
+a **computed** `epochs_covered`. That last field exists because Section
+IV-C's 0.8-epoch figure does not reconcile with the stated corpus size
+(`docs/ERRATA.md` B2); whatever the log prints is the number to cite.
+
+**Defaults changed to match Table III.** The trainers previously targeted
+all seven projection matrices, used `paged_adamw_32bit`, set no learning
+rate schedule and no seed, and used a 1024-token context. Table III
+specifies `q_proj, v_proj` — which is what yields Table II's 9.4M trainable
+parameters — with AdamW, cosine decay after 50 warm-up steps, seed 42 and
+512 tokens. To reproduce the previous behaviour exactly:
+
+```bash
+python -m bhasha.llm.train --config configs/phase1_bangla_pt.yaml \
+    --target-modules legacy --optim paged_adamw_32bit
+```
+
+Every original command-line flag still works.
+
 ## Layout
 
 ```
 bhasha/            core package (app, data, eval, llm, ocr, scripts, utils)
+  config.py        Table III loader; makes configs/*.yaml authoritative
+  data/            OCRDataset, corpus preprocessing, Ekush sampling, manifest
+  app/             FastAPI app, adapter manager, /api/v1 router
+  utils/           run summaries (peak VRAM, epochs_covered), helpers
 configs/           one YAML per training phase
 eval/              metric implementations; each writes a JSON artifact
-benchmarks/        per-model raw generations and the model registry
+benchmarks/        per-model raw generations, item sets, and the model registry
 human_eval/        anchored rubric, anonymised ratings, reliability
 logs/              per-phase training summaries
 docs/              errata, traceability register, environment capture
 data/              splits, checksums, handwriting manifest
 tests/             mirrors the bhasha/ hierarchy
+test_models.py     CLI — the primary production interface (paper Sec. III-F)
 main.py            FastAPI entry point
 ```
 

@@ -322,6 +322,26 @@ async def philosophical(request: PhilosophicalRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ---------------------------------------------------------------------------
+# Paper-faithful endpoints (added; nothing above this line was changed).
+#
+# The endpoints above are the original application: a ResNet-34 three-head
+# grapheme classifier plus Gemini cloud calls. They keep working exactly as
+# before. The router mounted below adds the surface paper Sec. III-F
+# describes -- base model plus one resident QLoRA adapter, grading, OCR and
+# generation, all local. See bhasha/app/routes_v1.py.
+#
+# The import is guarded so that a missing optional dependency degrades to
+# the legacy API rather than preventing the server from starting at all.
+# ---------------------------------------------------------------------------
+try:
+    from bhasha.app.routes_v1 import router as v1_router
+    app.include_router(v1_router)
+    print("✅ Mounted paper-faithful API at /api/v1 (see bhasha/app/routes_v1.py)")
+except Exception as _v1_exc:  # noqa: BLE001
+    print(f"⚠️ /api/v1 router not mounted: {_v1_exc}")
+
+
 if __name__ == '__main__':
     import uvicorn
     os.makedirs('models', exist_ok=True)
