@@ -439,6 +439,89 @@ that previously existed was removed to make room for any of them.
 | `test_models.py` | Sec. III-F | Named as "the primary production interface"; absent from the repository | Present at the repository root; `main.py` unchanged |
 | Single-resident-adapter runtime | Sec. III-F | The FastAPI app served a ResNet-34 classifier and proxied to the Gemini cloud API; no adapter was loaded or swapped | `bhasha/app/adapter_manager.py` + `bhasha/app/routes_v1.py`, mounted at `/api/v1` alongside the untouched legacy endpoints |
 
+### C4. The LLM correction stage of contribution #3 was a placeholder
+
+Section I lists as the third contribution:
+
+> A hybrid handwritten Bangla OCR pipeline combining a fine-tuned
+> vision-language recognizer with LLM-based error correction, reaching 88%
+> character-level accuracy on a held-out, self-collected test set.
+
+Section V-B reports that stage's performance in detail — 88% and 85%
+correct fixes for the two Llama models, 35% for Mistral-7B against a 30%
+over-correction rate.
+
+`bhasha/ocr/pipeline.py` contained:
+
+```python
+def correct_text_with_llm(text, model_path=None):
+    # Stub for LLM correction.
+    # In real pipeline, load the finetuned model and prompt it.
+    return text  # Placeholder
+```
+
+The correction stage was not implemented. It is the half of contribution #3
+that distinguishes it from ordinary OCR, and every number in Section V-B's
+correction paragraph is a measurement of it.
+
+Two further divergences in the same file:
+
+- **Its recognizer is not the paper's.** `bhasha/ocr/pipeline.py`
+  recognises with a PaddleOCR + Tesseract ensemble. Neither engine appears
+  anywhere in the manuscript. The paper's recognizer is the QLoRA-adapted
+  Qwen-VL model of Section IV-C Phase 3.
+- **Section III-A's detection/recognition split had no code.** The
+  architecture section makes decoupling the central design claim
+  ("allows the detector and the recognizer to be optimised and swapped
+  independently") and no module implemented the two stages as separable
+  components.
+
+**Now.** `bhasha/ocr/hybrid_pipeline.py` implements the pipeline the paper
+describes: a swappable detection stage (`projection` | `paddle` | `none`),
+QLoRA Qwen-VL recognition through the adapter manager, and a real LLM
+correction stage with guardrails against the aggressive-editing failure
+Section IV-D warns about. `bhasha/ocr/pipeline.py` is **unchanged** apart
+from a docstring pointing here; it remains a usable classical baseline.
+
+The batch output of the hybrid pipeline writes `noisy` (pre-correction)
+and `hypothesis` (post-correction) into one JSONL, so the recognizer and
+the corrector can be scored separately — which is what Table VII and
+Section V-B report separately.
+
+### C5. The repository ships a retrieval stack the paper says was not used
+
+Section III-D is a full subsection arguing that retrieval-augmented
+generation was deliberately rejected:
+
+> A retriever supplies more text to condition on without supplying anything
+> the model lacks [...] neither failure mode this paper addresses is a
+> knowledge failure.
+
+The repository contains a working retrieval implementation:
+
+| File | What it is |
+| --- | --- |
+| `bhasha/llm/rag_benchmark.py` | a RAG benchmark harness |
+| `docs/PORAG_SETUP.md` | setup instructions for a retrieval pipeline |
+| `llm outputs/bn_rag_8B.md` | generations from a RAG model |
+| `requirements-full.lock` | `chromadb`, `chroma-hnswlib`, `langchain*`, `sentence-transformers` |
+
+Group C above already noted the packages. The code and the recorded outputs
+are the substantive part: a reader who opens `llm outputs/` finds a RAG
+model's generations sitting beside the nine benchmarked models, in a
+repository whose paper explains why retrieval was not used.
+
+**Position taken here.** This is exploratory work that preceded or ran
+alongside the reported experiments and did not feed any result in the
+paper. Nothing in Tables V, VI or VII depends on it. That is a normal thing
+for a research repository to contain, and it is only a problem when it is
+undocumented — a reader cannot otherwise tell whether Section III-D
+describes a decision or a description written after the fact.
+
+**Nothing was removed.** The files are retained. Section VII lists
+retrieval as the first item of future work, which makes an existing
+harness an asset rather than a contradiction, provided it is labelled.
+
 ### C3. The shipped API contradicts the offline-deployment claim
 
 Sections III-F and VI-F describe a deployment that runs entirely on one

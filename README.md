@@ -144,6 +144,42 @@ python test_models.py ocr --manifest data/handwriting/manifest.csv \
     --split test --confidence --out eval/ocr_predictions.jsonl
 ```
 
+### The hybrid OCR pipeline (paper Sec. III-A)
+
+Detection → QLoRA Qwen-VL recognition → LLM correction, the three stages of
+the paper's third contribution:
+
+```bash
+python -m bhasha.ocr.hybrid_pipeline --image page.png
+python -m bhasha.ocr.hybrid_pipeline --image page.png --detector paddle
+python -m bhasha.ocr.hybrid_pipeline --image line.png --detector none --no-correct
+```
+
+Batch mode writes `noisy` (pre-correction) and `hypothesis`
+(post-correction) into one file, so the recognizer and the corrector are
+scored separately — which is what Table VII and Section V-B report
+separately:
+
+```bash
+python -m bhasha.ocr.hybrid_pipeline --manifest data/handwriting/manifest.csv \
+    --split test --out eval/ocr_predictions.jsonl
+python eval/ocr_cer.py --pred eval/ocr_predictions.jsonl \
+    --manifest data/handwriting/manifest.csv --group-by writer_id
+python eval/ocr_correction.py --pred eval/ocr_predictions.jsonl
+```
+
+For Table VII's **"Before"** column, run the un-adapted base model:
+
+```bash
+python -m bhasha.ocr.hybrid_pipeline --manifest ... --no-adapter --no-correct
+python test_models.py ocr --manifest ... --no-adapter --confidence
+```
+
+`bhasha/ocr/pipeline.py` is the repository's original PaddleOCR+Tesseract
+pipeline. It is unchanged and still works, but its correction stage is a
+placeholder and its recognizer is not the paper's — see
+`docs/ERRATA.md` §C4.
+
 ### `main.py` — the API
 
 ```bash
@@ -171,6 +207,12 @@ they differ.
 
 | Paper location | Command | Output |
 | --- | --- | --- |
+| Sec. III-A — hybrid OCR pipeline | `python -m bhasha.ocr.hybrid_pipeline --image page.png` | detection → recognition → correction |
+| Sec. III-C / Table II — memory budget | `python eval/memory_budget.py --table-ii --out eval/memory_budget.json` | `eval/memory_budget.json` |
+| Table II — the OOM row | `python scripts/capture_oom_attempt.py` | `logs/oom_attempt.txt` |
+| Sec. III-E — blind rating sheets | `python eval/make_rating_sheets.py --pred benchmarks/raw/*.jsonl --seed 42` | `human_eval/{rating_sheet.csv,rating_sheet.md,blinding_map.json}` |
+| Sec. III-F — local footprint | `bash scripts/capture_footprint.sh` | `docs/footprint.txt` |
+| Sec. IV-B — tokeniser sanity checks | `python eval/tokenizer_sanity.py --models Qwen/Qwen2.5-1.5B-Instruct facebook/xglm-1.7b` | `eval/tokenizer_sanity.json` |
 | Sec. IV-B — corpus preprocessing and splits | `python -m bhasha.data.text_corpus --input data/raw/nazrul data/raw/tagore --out-dir data/splits --tokenizer Qwen/Qwen2.5-1.5B-Instruct` | `data/splits/{train,val,test}.txt`, `split_manifest.json` |
 | Sec. IV-C — Ekush stratified sample | `python -m bhasha.data.ekush_sampling --input data/processed/ekush_prepared/train.jsonl --n 6000 --out data/processed/ekush_sampled_6000.jsonl` | sample + stratification report |
 | Sec. IV-B / VI-D — handwriting manifest | `python -m bhasha.data.manifest --validate data/handwriting/manifest.csv` | writer-disjointness audit |

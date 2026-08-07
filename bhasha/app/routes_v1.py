@@ -177,6 +177,7 @@ async def ocr(
     image: UploadFile = File(...),
     image_size: int = OCR_IMAGE_SIZE,
     return_confidence: bool = True,
+    use_adapter: bool = True,
 ) -> Dict[str, Any]:
     """Transcribe handwritten Bangla with the Phase-3 QLoRA recogniser.
 
@@ -185,6 +186,9 @@ async def ocr(
     ``return_confidence`` computes the ``eval/confidence.py`` definition
     (exp mean token logprob) rather than an undefined quantity -- see
     ``docs/ERRATA.md`` B11.
+
+    ``use_adapter=false`` runs the un-adapted base model, which is Table
+    VII's "Before" column (28% CER, 0.68 confidence).
     """
     if not (image.content_type or "").startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
@@ -193,7 +197,8 @@ async def ocr(
         data = await image.read()
         pil = Image.open(io.BytesIO(data))
         return _manager().ocr(
-            pil, image_size=image_size, return_logprobs=return_confidence)
+            pil, image_size=image_size, return_logprobs=return_confidence,
+            use_adapter=use_adapter)
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001

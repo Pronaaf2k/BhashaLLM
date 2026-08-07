@@ -28,10 +28,10 @@ it is not maintained.
 | Software stack versions | Sec. IV-A | `docs/environment_capture.txt` | `bash scripts/capture_environment.sh` | `CORRECTED` (ERRATA A1) |
 | Hardware: RTX 5070 Ti, 16 GB | Sec. IV-A | same | same | `MISSING` |
 | QLoRA peak 9.4 GB | Table II | `logs/phase*_summary.json` → `peak_vram_gb` | any phase run; written by `bhasha/utils/run_summary.py` | `MISSING` (writer now implemented) |
-| LoRA r=16 fp16 OOM | Table II | `logs/oom_attempt.txt` (the traceback itself) | rerun the failing config, capture stderr | `MISSING` |
+| LoRA r=16 fp16 OOM | Table II | `logs/oom_attempt.txt` (the traceback itself) | `python scripts/capture_oom_attempt.py` | `MISSING` (capture script now implemented) |
 | 11B model *trained* on 16 GB | Abstract, Tbl II, III-C, VI-E | `logs/llama11b_train_summary.json` — or claim withdrawn | — | `CORRECTED` (ERRATA B1) |
-| Full FT ≈ 170 GB | Sec. III-C | footnote showing the term-by-term formula | arithmetic | `CORRECTED` (ERRATA B5) |
-| Local footprint 10.5 GB, 66/34/1 | Sec. III-F | `docs/footprint.txt` | `du -sh models/* && du -sh .` | `CHECK` |
+| Full FT ≈ 170 GB | Sec. III-C | `eval/memory_budget.json` | `python eval/memory_budget.py --table-ii --out eval/memory_budget.json` | `CORRECTED` — computed 171.6 GB; the paper's total is right, its 4x multiplier is not (ERRATA B5) |
+| Local footprint 10.5 GB, 66/34/1 | Sec. III-F | `docs/footprint.txt` | `bash scripts/capture_footprint.sh` | `MISSING` (capture script now implemented) |
 
 ## Data
 
@@ -66,9 +66,10 @@ it is not maintained.
 
 | Claim | Paper | Evidence file | Command | Status |
 | --- | --- | --- | --- | --- |
-| Translation scores, 14/15 top | Table V | `human_eval/ratings.csv` | `python eval/aggregate_human_eval.py --ratings human_eval/ratings.csv` | `MISSING` |
+| Translation scores, 14/15 top | Table V | `human_eval/ratings.csv` | `python eval/make_rating_sheets.py --pred benchmarks/raw/*.jsonl` → rate → `--unblind` → `eval/aggregate_human_eval.py` | `MISSING` (sheet generator now implemented) |
 | Inter-rater agreement | Sec. III-E, VI-D | `human_eval/alpha_by_dimension.json` | same | `MISSING` |
 | Rubric anchors | Sec. III-E | `human_eval/rubric.md` | — | `TRACED` |
+| Blinding map and seed | Sec. III-E | `human_eval/blinding_map.json` | `python eval/make_rating_sheets.py --pred ... --seed 42` | `MISSING` (generator now implemented) |
 | ROUGE-1/2/L, 9 models | Table VI | `eval/rouge_results.json` | `python eval/text_metrics.py --pred benchmarks/raw/<model>.jsonl` | `CORRECTED` (ERRATA B8) |
 | ROUGE tokenizer for Bangla | Table VI | `tokenizer` field in the same file | same | `TRACED` |
 | BLEU / chrF++ | Sec. V-A | `eval/rouge_results.json` → `bleu`/`chrf++` + signatures | `python eval/text_metrics.py --pred ...` (sacrebleu now in requirements.txt) | `MISSING` |
@@ -86,6 +87,18 @@ it is not maintained.
 | Confidence 0.68 → 0.82 | Table VII | `eval/confidence.json` | `python eval/confidence.py --pred <preds with token_logprobs>` | `CORRECTED` — definition `exp(mean log p)` now in code (ERRATA B11) |
 | OCR correction 88% / 85% / 35% | Sec. V-B | `eval/ocr_correction.json` with denominators | `python eval/ocr_correction.py --pred benchmarks/raw/ocr_correction.jsonl` | `CORRECTED` — denominators now defined in code (ERRATA B11) |
 | Maung et al. CER 10.37% | Table VII | their 2.47% final figure must appear too | — | `CORRECTED` (ERRATA A3) |
+
+## Architecture and pipeline
+
+| Claim | Paper | Evidence file | Command | Status |
+| --- | --- | --- | --- | --- |
+| Detection decoupled from recognition | Sec. III-A | `bhasha/ocr/hybrid_pipeline.py` | `--detector projection\|paddle\|none` | `TRACED` (was unimplemented, ERRATA C4) |
+| LLM correction stage exists | Sec. I contrib. 3, V-B | `bhasha/ocr/hybrid_pipeline.py` → `correct_line` | `python -m bhasha.ocr.hybrid_pipeline --image ...` | `TRACED` (was a stub, ERRATA C4) |
+| Table VII "Before" (28% CER, 0.68) | Table VII | `eval/ocr_cer.json` from an un-adapted run | `python test_models.py ocr --no-adapter ...` | `MISSING` (baseline path now implemented) |
+| Retrieval not used | Sec. III-D | — | — | `CORRECTED` — a RAG stack is present but feeds no result (ERRATA C5) |
+| Tokeniser sanity checks vs refs [24]–[27] | Sec. IV-B | `eval/tokenizer_sanity.json` | `python eval/tokenizer_sanity.py --models ... --wordlist ... --corpus ...` | `MISSING` (checks now implemented) |
+| Subword inefficiency makes context scarce | Sec. III-C | same → `fertility` | same command | `MISSING` (now measurable) |
+| Bangla/Devanagari token adjacency | Sec. VI-A | same → `script_adjacency` | same command | `MISSING` — partial only; the full ablation Sec. VI-A describes is still not run |
 
 ## References
 
@@ -120,6 +133,12 @@ repository. What is missing is data and compute, not code.
 | `benchmarks/model_registry.json` | added — schema present, `FILL` fields open |
 | `test_models.py` | added — the Sec. III-F interface, at the repository root |
 | `bhasha/app/adapter_manager.py`, `routes_v1.py` | added — Sec. III-F adapter residency, mounted at `/api/v1` |
+| `bhasha/ocr/hybrid_pipeline.py` | added — detection → QLoRA recognition → real LLM correction (ERRATA C4) |
+| `eval/make_rating_sheets.py` | added — blind rating sheets, blinding map, unblinding |
+| `eval/memory_budget.py` | added — Table II term by term |
+| `eval/tokenizer_sanity.py` | added — Sec. IV-B sanity checks, fertility, conjunct/matra integrity |
+| `scripts/capture_oom_attempt.py` | added — captures `logs/oom_attempt.txt` |
+| `scripts/capture_footprint.sh` | added — writes `docs/footprint.txt` |
 | `eval/{compute_bpc,ocr_cer,script_integrity,text_metrics,aggregate_human_eval}.py` | already present |
 
 ## Before tagging `v1.0-paper`

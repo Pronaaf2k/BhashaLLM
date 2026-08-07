@@ -138,6 +138,10 @@ class AdapterManager:
         self._tokenizer = None
         self._ocr_model = None
         self._processor = None
+        # Whether the resident OCR model carries the Phase-3 adapter. Table
+        # VII reports a Before/After pair, so which one is loaded has to be
+        # tracked rather than assumed.
+        self._ocr_has_adapter = False
         self._active: Optional[str] = None
         self.swap_history: List[SwapRecord] = []
 
@@ -287,6 +291,15 @@ class AdapterManager:
             self.use(task)
             tok, model = self._tokenizer, self._text_model
             params = {**TEXT_DECODING, **overrides}
+            # Drop None-valued overrides. A caller switching to greedy
+            # decoding passes do_sample=False and temperature=None; leaving
+            # temperature=None in the kwargs raises inside generate().
+            params = {k: v for k, v in params.items() if v is not None}
+            if params.get("do_sample") is False:
+                # transformers warns, and in some versions errors, when
+                # sampling parameters accompany greedy decoding.
+                for k in ("temperature", "top_p", "top_k"):
+                    params.pop(k, None)
 
             inputs = tok(prompt, return_tensors="pt").to(model.device)
             t0 = time.perf_counter()
@@ -341,9 +354,28 @@ class AdapterManager:
 
     # ----------------------------------------------------------------- OCR
 
-    def _ensure_ocr(self):
-        if self._ocr_model is not None:
+    def _ensure_ocr(self, use_adapter: bool = True):
+        """Load the vision-language base, optionally with the Phase-3 adapter.
+
+        ``use_adapter=False`` is Table VII's "Before" column: the
+        un-adapted ``swapnillo/Bangla-OCR-SFT`` at 28% CER and 0.68
+        confidence, against which the fine-tuned 12% / 0.82 is reported.
+        Without this path the baseline half of Table VII has no
+        reproduction route at all.
+
+        Switching between the two rebuilds the model, because a merged or
+        attached adapter cannot be un-attached cheaply. That is slow but
+        correct; the alternative is a baseline silently measured with the
+        adapter still loaded, which would understate the improvement the
+        table reports.
+        """
+        if self._ocr_model is not None and self._ocr_has_adapter == use_adapter:
             return
+        if self._ocr_model is not None:
+            self._ocr_model = None
+            self._processor = None
+            self._reclaim()
+
         from transformers import AutoModelForVision2Seq, AutoProcessor
         import torch
 
@@ -363,15 +395,24 @@ class AdapterManager:
         self._processor = AutoProcessor.from_pretrained(
             self.ocr_base_model, trust_remote_code=True)
 
-        path = self.adapter_path("ocr")
-        if path and path.exists():
-            from peft import PeftModel
-            self._ocr_model = PeftModel.from_pretrained(
-                self._ocr_model, str(path))
+        self._ocr_has_adapter = False
+        if use_adapter:
+            path = self.adapter_path("ocr")
+            if path and path.exists():
+                from peft import PeftModel
+                self._ocr_model = PeftModel.from_pretrained(
+                    self._ocr_model, str(path))
+                self._ocr_has_adapter = True
+            else:
+                print(f"⚠️ OCR adapter not found at {path}; running the "
+                      f"un-adapted base model (Table VII 'Before').")
 
     def ocr(self, image, image_size: int = OCR_IMAGE_SIZE,
-            return_logprobs: bool = False, **overrides: Any) -> Dict[str, Any]:
+            return_logprobs: bool = False, use_adapter: bool = True,
+            **overrides: Any) -> Dict[str, Any]:
         """Transcribe a handwritten Bangla image.
+
+        ``use_adapter=False`` selects Table VII's "Before" baseline.
 
         Applies "the correct resizing and normalisation for the OCR model
         automatically" (paper Sec. III-F): RGB conversion and a square
@@ -385,7 +426,7 @@ class AdapterManager:
         from bhasha.data.dataset import DEFAULT_PROMPT
 
         with self._lock:
-            self._ensure_ocr()
+            self._ensure_ocr(use_adapter=use_adapter)
             if isinstance(image, (str, Path)):
                 image = Image.open(image)
             image = image.convert("RGB").resize((image_size, image_size))
@@ -475,6 +516,7 @@ class AdapterManager:
             self._tokenizer = None
             self._ocr_model = None
             self._processor = None
+            self._ocr_has_adapter = False
             self._active = None
             self._reclaim()
 

@@ -131,8 +131,10 @@ def cmd_grade(args) -> int:
 
 def _ocr_one(m, path, args):
     out = m.ocr(path, image_size=args.image_size,
-                return_logprobs=args.confidence)
+                return_logprobs=args.confidence,
+                use_adapter=not getattr(args, "no_adapter", False))
     out["image"] = str(path)
+    out["adapter"] = not getattr(args, "no_adapter", False)
     return out
 
 
@@ -294,6 +296,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--image-size", type=int, default=OCR_IMAGE_SIZE)
     p.add_argument("--confidence", action="store_true",
                    help="also emit token logprobs (see eval/confidence.py)")
+    p.add_argument("--no-adapter", action="store_true",
+                   help="recognise with the un-adapted base model. This is "
+                        "Table VII's 'Before' column (28%% CER, 0.68 "
+                        "confidence); without it only the 'After' half of "
+                        "the table is reproducible.")
     p.add_argument("--out", default="eval/ocr_predictions.jsonl")
     p.set_defaults(func=cmd_ocr)
 

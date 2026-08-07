@@ -1,5 +1,12 @@
 # PoRAG (Bangla RAG) Setup & Usage
 
+> **Scope note.** This describes exploratory work **outside the paper's
+> methodology.** Section III-D explains why retrieval-augmented generation
+> was deliberately not used, and no reported result depends on this
+> pipeline. Retained because Section VII lists retrieval as the first item
+> of future work. See [`ERRATA.md`](ERRATA.md) §C5.
+
+
 **Goal:** Turn your OCR text into a searchable knowledge base using Retrieval-Augmented Generation (RAG).
 
 ## 📂 Installation

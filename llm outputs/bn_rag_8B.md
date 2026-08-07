@@ -1,5 +1,11 @@
 # bn_rag 8B
 
+> **Scope note.** This is a retrieval-augmented model and is **not one of
+> the nine architectures benchmarked in Table I.** Section III-D explains
+> why retrieval was not used, so nothing here feeds Table V, VI or VII.
+> Retained as exploratory work; see [`../docs/ERRATA.md`](../docs/ERRATA.md) §C5.
+
+
 | Metric | Result |
 | :--- | :--- |
 | Translation | ❌ News Hallucination |

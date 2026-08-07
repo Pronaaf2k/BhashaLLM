@@ -425,6 +425,227 @@ def test_collate_carries_provenance_keys():
 # ------------------------------------------------------- registry sanity
 
 
+# ------------------------------------------------------- Table II budget
+
+
+@pytest.fixture(scope="module")
+def budget():
+    return _load("memory_budget_mod", "eval/memory_budget.py")
+
+
+def test_full_finetuning_reaches_the_papers_170gb(budget):
+    """Sec. III-C: 'putting the total near 170 GB'."""
+    payload = budget.table_ii()
+    full = next(r for r in payload["rows"] if r["method"] == "full")
+    assert 160 <= full["total_gb"] <= 185
+    assert not full["fits_in_16gb"]
+
+
+def test_errata_b5_multiplier_is_not_four(budget):
+    """The paper says the optimiser term is 4x the weight size. It is not.
+
+    fp32 exp_avg + fp32 exp_avg_sq + fp32 master copy = 12 bytes per
+    parameter against 2 bytes stored in fp16, i.e. 6x, plus 1x for fp16
+    gradients.
+    """
+    e = budget.table_ii()["errata_b5_check"]
+    assert e["stated_multiplier"] == 4
+    assert e["computed_multiplier_over_fp16_weights"] == pytest.approx(7.0, abs=0.1)
+
+
+def test_only_qlora_fits_in_16gb(budget):
+    """Table II's whole argument: quantising the base is the deciding step."""
+    rows = {r["method"]: r for r in budget.table_ii()["rows"]}
+    assert rows["qlora"]["fits_in_16gb"]
+    for method in ("full", "lora", "adapters", "prefix"):
+        assert not rows[method]["fits_in_16gb"], f"{method} should not fit"
+
+
+def test_trainable_counts_reproduce_table_ii(budget):
+    """Table II: adapters 42M, prefix tuning 3.3M."""
+    rows = {r["method"]: r for r in budget.table_ii()["rows"]}
+    assert rows["adapters"]["trainable_params"] == pytest.approx(42e6, rel=0.05)
+    assert rows["prefix"]["trainable_params"] == pytest.approx(3.3e6, rel=0.05)
+
+
+def test_quantising_the_base_is_what_saves_the_memory(budget):
+    """LoRA and QLoRA train identical parameters; only the base differs."""
+    rows = {r["method"]: r for r in budget.table_ii()["rows"]}
+    assert (rows["lora"]["trainable_params"]
+            == rows["qlora"]["trainable_params"])
+    assert (rows["lora"]["terms_gb"]["frozen_weights"]
+            > 3 * rows["qlora"]["terms_gb"]["frozen_weights"])
+
+
+# -------------------------------------------------- hybrid OCR pipeline
+
+
+def test_script_check_exempts_the_danda():
+    """U+0964 is Devanagari-block but is the Bangla sentence terminator."""
+    from bhasha.ocr.hybrid_pipeline import script_ok
+
+    assert script_ok("বাংলা ভাষা।")
+    assert script_ok("বাংলা ভাষা॥")
+    assert not script_ok("बांग्ला भाषा")          # Devanagari letters
+    assert not script_ok("plain english only")    # no Bangla at all
+    assert not script_ok("")
+
+
+def test_correction_rejects_a_rewrite_but_accepts_a_repair():
+    """Sec. IV-D: a model must not inflate its correction rate by editing
+    aggressively. The guardrail is tested with a stub LLM so no weights
+    are needed."""
+    from bhasha.ocr.hybrid_pipeline import HybridOCRPipeline
+
+    class StubManager:
+        def __init__(self, reply):
+            self.reply = reply
+
+        def format_chatml(self, messages):
+            return messages[0]["content"]
+
+        def generate(self, prompt, **kw):
+            return {"text": self.reply}
+
+    reference = "বাংলাদেশের রাজধানী ঢাকা।"
+    noisy = "বাংলাদেশের রাজধনী ঢাকা।"
+
+    # A one-character repair is accepted.
+    p = HybridOCRPipeline(manager=StubManager(reference))
+    text, applied, reason, dist = p.correct_line(noisy)
+    assert applied and reason is None and text == reference and dist > 0
+
+    # A wholesale rewrite is rejected and the original kept.
+    p = HybridOCRPipeline(manager=StubManager("সম্পূর্ণ ভিন্ন একটি বাক্য যা মূলের সাথে মেলে না একেবারেই"))
+    text, applied, reason, _ = p.correct_line(noisy)
+    assert not applied
+    assert reason == "rewrite_exceeds_max_edit_ratio"
+    assert text == noisy
+
+    # A correction that drifts into Devanagari is rejected.
+    p = HybridOCRPipeline(manager=StubManager("बांग्लादेश की राजधानी"))
+    text, applied, reason, _ = p.correct_line(noisy)
+    assert not applied and reason == "script_invalid" and text == noisy
+
+    # An empty correction is rejected.
+    p = HybridOCRPipeline(manager=StubManager("   "))
+    _, applied, reason, _ = p.correct_line(noisy)
+    assert not applied and reason == "empty_correction"
+
+
+def test_identical_correction_is_not_counted_as_applied():
+    """A no-op must not be recorded as a correction; it would inflate the
+    numerator of the correction rate."""
+    from bhasha.ocr.hybrid_pipeline import HybridOCRPipeline
+
+    class Echo:
+        def format_chatml(self, m):
+            return m[0]["content"]
+
+        def generate(self, prompt, **kw):
+            return {"text": "বাংলাদেশের রাজধানী ঢাকা।"}
+
+    p = HybridOCRPipeline(manager=Echo())
+    text, applied, reason, dist = p.correct_line("বাংলাদেশের রাজধানী ঢাকা।")
+    assert not applied and dist == 0 and reason is None
+
+
+def test_pipeline_rejects_an_unknown_detector():
+    from bhasha.ocr.hybrid_pipeline import HybridOCRPipeline
+
+    with pytest.raises(ValueError):
+        HybridOCRPipeline(detector="magic")
+
+
+# ------------------------------------------------------- blind rating
+
+
+@pytest.fixture(scope="module")
+def sheets():
+    return _load("make_rating_sheets_mod", "eval/make_rating_sheets.py")
+
+
+def _fake_models(n_models=3, n_items=6):
+    return {
+        f"model_{chr(ord('a') + m)}": [
+            {"item_id": f"i{i}", "output": f"বাংলা লেখা {m}{i}",
+             "prompt": f"p{i}", "reference": f"r{i}"}
+            for i in range(n_items)
+        ]
+        for m in range(n_models)
+    }
+
+
+def test_blinding_hides_identity_and_is_reversible(sheets):
+    rows, sheet, m = sheets.build(_fake_models(), ["r1", "r2"], 42, "translation")
+    codes = set(m["system_code_to_model"])
+    assert codes == {"SYS_A", "SYS_B", "SYS_C"}
+    # No row carries a real model name.
+    assert all(r["system_code"] in codes for r in rows)
+    # The map inverts cleanly.
+    assert len(set(m["system_code_to_model"].values())) == 3
+
+
+def test_output_order_is_randomised_per_item_not_once(sheets):
+    """A single global shuffle leaves each system in a fixed position, which
+    a rater notices within a dozen items."""
+    _, _, m = sheets.build(_fake_models(n_items=12), ["r1"], 42, "translation")
+    orders = list(m["per_item_system_order"].values())
+    assert len(set(tuple(o) for o in orders)) > 1, "order never changed"
+
+
+def test_blinding_is_reproducible_from_the_seed(sheets):
+    _, _, a = sheets.build(_fake_models(), ["r1"], 42, "t")
+    _, _, b = sheets.build(_fake_models(), ["r1"], 42, "t")
+    _, _, c = sheets.build(_fake_models(), ["r1"], 7, "t")
+    assert a["system_code_to_model"] == b["system_code_to_model"]
+    assert a["per_item_system_order"] == b["per_item_system_order"]
+    assert a["system_code_to_model"] != c["system_code_to_model"]
+
+
+def test_row_count_is_items_x_systems_x_dimensions_x_raters(sheets):
+    rows, _, m = sheets.build(_fake_models(3, 6), ["r1", "r2"], 42, "t")
+    assert len(rows) == 6 * 3 * len(sheets.DIMENSIONS) * 2
+    assert m["n_items"] == 6
+
+
+def test_items_missing_a_system_are_dropped(sheets):
+    """An item one system did not answer cannot be compared across systems."""
+    by_model = _fake_models(3, 4)
+    by_model["model_c"] = by_model["model_c"][:2]   # two items missing
+    _, _, m = sheets.build(by_model, ["r1"], 42, "t")
+    assert m["n_items"] == 2
+    assert len(m["items_dropped_incomplete"]) == 2
+
+
+def test_self_identifying_outputs_are_flagged(sheets):
+    """Blinding fails if an output names its own model family."""
+    recs = [{"item_id": "i0", "output": "As an AI language model, I cannot."},
+            {"item_id": "i1", "output": "বাংলা লেখা"}]
+    hits = sheets.check_fingerprints("model_a", recs)
+    assert len(hits) == 1 and hits[0]["item_id"] == "i0"
+
+
+def test_length_separability_warns_when_systems_are_sortable(sheets):
+    by_model = {"short": [{"item_id": "i0", "output": "ক" * 10}],
+                "long": [{"item_id": "i0", "output": "ক" * 500}]}
+    assert sheets.length_separability(by_model)["warning"] is not None
+
+
+# ---------------------------------------------------- tokenizer sanity
+
+
+def test_tokenizer_sanity_script_helpers():
+    mod = _load("tokenizer_sanity_mod", "eval/tokenizer_sanity.py")
+    assert mod.is_bengali("ক") and not mod.is_bengali("क")
+    assert mod.is_devanagari("क")
+    # The danda is exempt for the same reason as everywhere else.
+    assert not mod.is_devanagari("।")
+    assert mod._script_of("বাংলা") == "bengali"
+    assert mod._script_of("बांग्ला") == "devanagari"
+    assert mod._script_of("বাংলা बांग्ला") == "mixed"
+
+
 def test_model_registry_covers_the_nine_benchmarked_models():
     reg = json.loads((ROOT / "benchmarks/model_registry.json").read_text(
         encoding="utf-8"))

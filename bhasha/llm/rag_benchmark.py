@@ -1,3 +1,27 @@
+"""Bangla retrieval-augmented generation benchmark.
+
+SCOPE NOTE (added during the paper-alignment pass; no behaviour changed).
+
+This module is **exploratory work outside the methodology of the paper**.
+Section III-D of the manuscript explains at length why retrieval-augmented
+generation was deliberately not used:
+
+    "A retriever supplies more text to condition on without supplying
+    anything the model lacks [...] neither failure mode this paper
+    addresses is a knowledge failure. A model that answers a Bangla prompt
+    in English, or drifts into Devanagari mid-sentence, does so whatever
+    sits in its context window."
+
+No result in Table V, VI or VII depends on anything here, and the RAG
+outputs in `llm outputs/bn_rag_8B.md` are not part of the nine-model
+benchmark of Table I.
+
+The file is retained deliberately. Section VII lists retrieval as the first
+item of future work ("Future work includes retrieval-augmented generation
+to ground responses and reduce hallucination"), so an existing harness is
+useful. See `docs/ERRATA.md` C5.
+"""
+
 import os
 import torch
 import argparse

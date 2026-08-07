@@ -91,10 +91,23 @@ def ensemble_ocr(img):
         return t_text
 
 def correct_text_with_llm(text, model_path=None):
-    # Stub for LLM correction. 
-    # In real pipeline, load the finetuned model and prompt it.
+    """LLM correction stage.
+
+    NOTE (added during the paper-alignment pass; behaviour unchanged):
+    this remained a placeholder, so the LLM correction stage of the paper's
+    third contribution had no implementation here, and the correction /
+    over-correction / false-positive rates of Sec. V-B had no code behind
+    them. The implemented version lives in
+    ``bhasha/ocr/hybrid_pipeline.py`` -- ``HybridOCRPipeline.correct_line``
+    -- together with the QLoRA Qwen-VL recognizer the paper actually
+    describes. See ``docs/ERRATA.md`` C4.
+
+    This function is left returning its input so that nothing depending on
+    the current behaviour of this module changes. Use the hybrid pipeline
+    for the paper's pipeline.
+    """
     # prompt = f"Correct the following Bangla OCR text:\n{text}\nCorrection:"
-    return text # Placeholder
+    return text  # Placeholder -- see hybrid_pipeline.py for the real stage
 
 def main():
     parser = argparse.ArgumentParser()
