@@ -60,9 +60,9 @@ it is not maintained.
 | Claim | Paper | Evidence file | Command | Status |
 | --- | --- | --- | --- | --- |
 | Qwen PPL 3.8 vs XGLM 73.15 | Sec. III-B | `eval/bpc_comparison.json` | `python eval/compute_bpc.py --models ... --corpus data/splits/test.txt` | `CORRECTED` (ERRATA B6) |
-| Quantisation of the 9 models | Sec. IV–V | `benchmarks/model_registry.json` | fill the `FILL` fields per model | `CHECK` — file added with schema; fields unfilled (ERRATA B10) |
-| Raw generations, 9 models | Tables V, VI | `benchmarks/raw/{model}.jsonl` | benchmark run | `CHECK` |
-| Evaluation item set and N | Tables V, VI | `benchmarks/items/{translation,summarisation}.jsonl` | fix N and commit; schema in `benchmarks/README.md` | `MISSING` (schema now specified) |
+| Quantisation of the 9 models | Sec. IV–V | `benchmarks/model_registry.json` → `benchmark_execution` | read from `run_benchmark_suite.py` | `CORRECTED` — **Q4_K_M GGUF via Ollama, not NF4** (ERRATA B10, C11) |
+| Raw generations, 9 models | Tables V, VI | `benchmarks/raw/{model}.jsonl` | `python scripts/convert_llm_outputs.py` | `TRACED` — recovered from `llm outputs/`; 10 models, 4 records each |
+| Evaluation item set and N | Tables V, VI | `benchmarks/items/{translation,summarisation}.jsonl` | fix N and commit; schema in `benchmarks/README.md` | `CORRECTED` — **N = 1 per task** (ERRATA C12) |
 
 ## Results — text
 
@@ -75,7 +75,7 @@ it is not maintained.
 | ROUGE-1/2/L, 9 models | Table VI | `eval/rouge_results.json` | `python eval/text_metrics.py --pred benchmarks/raw/<model>.jsonl` | `CORRECTED` (ERRATA B8) |
 | ROUGE tokenizer for Bangla | Table VI | `tokenizer` field in the same file | same | `TRACED` |
 | BLEU / chrF++ | Sec. V-A | `eval/rouge_results.json` → `bleu`/`chrf++` + signatures | `python eval/text_metrics.py --pred ...` (sacrebleu now in requirements.txt) | `MISSING` |
-| Script confusion 23% / <1% / >99% | Abstract, Sec. V-C | `eval/script_integrity.json` | `python eval/script_integrity.py benchmarks/raw/*.jsonl` | `MISSING` (definition now `TRACED`, ERRATA B9) |
+| Script confusion 23% / <1% / >99% | Abstract, Sec. V-C | `eval/script_integrity.json` | `python scripts/convert_llm_outputs.py && python eval/script_integrity.py "benchmarks/raw/*.jsonl"` | `TRACED` — computable now; but N=4 per model, so the 23% and >99% figures are not reproducible at that precision (ERRATA C12) |
 | Latency 1450 / 680 ms, 69 / 147 tok/s | Sec. V-C | `benchmarks/latency.json` at a stated token budget | `python eval/latency.py --max-new-tokens 100 ...` (budget is a required flag) | `CORRECTED` (ERRATA B3) |
 | 42 Wh / 20 g CO2 per 1000 inferences | Sec. VI-F | `eval/energy.json` | `python eval/energy.py --from-latency-json benchmarks/latency.json --grid-factor <x> --grid-source "<cite>"` | `CORRECTED` (ERRATA B4) |
 
@@ -87,8 +87,18 @@ it is not maintained.
 | Writer-disjoint CER | Sec. VI-D | same, `by_writer_id` | add `--manifest ... --group-by writer_id` | `MISSING` |
 | Per-grapheme accuracy 94/91/85/79% | Sec. V-B | same, `by_grapheme_category` | same command | `CORRECTED` (ERRATA B7) |
 | Confidence 0.68 → 0.82 | Table VII | `eval/confidence.json` | `python eval/confidence.py --pred <preds with token_logprobs>` | `CORRECTED` — definition `exp(mean log p)` now in code (ERRATA B11) |
-| OCR correction 88% / 85% / 35% | Sec. V-B | `eval/ocr_correction.json` with denominators | `python eval/ocr_correction.py --pred benchmarks/raw/ocr_correction.jsonl` | `CORRECTED` — denominators now defined in code (ERRATA B11) |
+| OCR correction 88% / 85% / 35% | Sec. V-B | `eval/ocr_correction.json` | `python eval/ocr_correction.py --pred benchmarks/raw/ocr_correction.jsonl` | `CORRECTED` — **the prompt leaks its own answer; these rates measure copying** (ERRATA C17) |
 | Maung et al. CER 10.37% | Table VII | their 2.47% final figure must appear too | — | `CORRECTED` (ERRATA A3) |
+
+## Benchmark execution
+
+| Claim | Paper | Evidence file | Command | Status |
+| --- | --- | --- | --- | --- |
+| Model identity: "Llama-3.2-11B" | Abstract, Tbl I/V/VI/VII | `bhasha/llm/run_benchmark_suite.py` → `MODELS` | `ollama list` on the benchmark machine | `CORRECTED` — **`llama3.2:latest` is the 3B model** (ERRATA A00) |
+| Serving stack | Sec. IV-A | `benchmarks/model_registry.json` → `benchmark_execution` | read the runner | `CORRECTED` — Ollama/llama.cpp, not the Transformers stack (ERRATA C11) |
+| Fixed decoding across nine models | Sec. IV-C | same | same | `CORRECTED` — temperature 0.3, not 0.7 (ERRATA C13) |
+| Nine models benchmarked | Table I | same | same | `CORRECTED` — Llama-3-8B never run; `bn_rag_8B` run instead (ERRATA C14) |
+| Training losses 1.31 / 0.018 / 0.31 | Table IV | `logs/phase*_summary.json` | run a phase | `MISSING` — the only committed log is of a crashed run; `report/training_metrics.csv` matches no phase (ERRATA C16) |
 
 ## Architecture and pipeline
 
@@ -143,6 +153,8 @@ repository. What is missing is data and compute, not code.
 | `scripts/capture_oom_attempt.py` | added — captures `logs/oom_attempt.txt` |
 | `scripts/capture_footprint.sh` | added — writes `docs/footprint.txt` |
 | `scripts/audit_text_corpus.py` | added — extracts and audits `text dataset.rar` against Table IV |
+| `scripts/convert_llm_outputs.py` | added — recovers `llm outputs/*.md` into `benchmarks/raw/*.jsonl` |
+| `bhasha/eval/ekush_mapping.py` | added — restores the import breaking two eval modules |
 | `bhasha/app/routes_ui.py`, `static/index.html` | added — the opt-in Sec. III-F frontend |
 | `eval/{compute_bpc,ocr_cer,script_integrity,text_metrics,aggregate_human_eval}.py` | already present |
 

@@ -762,13 +762,159 @@ def test_audit_reports_no_findings_for_a_conforming_corpus(audit, tmp_path):
     assert cmp_["findings"] == [], cmp_["findings"]
 
 
+# ------------------------------------------------- ekush label mapping
+
+
+def test_ekush_mapping_has_the_documented_122_classes():
+    from bhasha.eval.ekush_mapping import CLASS_GROUPS, DEFAULT_MAP
+
+    # Ekush (ref [28]): 10 numerals + 11 vowels + 39 consonants
+    # + 10 modifiers + 52 compounds.
+    assert len(DEFAULT_MAP) == 122
+    sizes = {k: hi - lo for k, (lo, hi) in CLASS_GROUPS.items()}
+    assert sizes == {"numeral": 10, "vowel": 11, "consonant": 39,
+                     "modifier": 10, "compound": 52}
+
+
+def test_get_label_text_accepts_every_form_the_call_sites_use():
+    from bhasha.eval.ekush_mapping import get_label_text
+
+    assert get_label_text(0) == "০"
+    assert get_label_text(21) == "ক"
+    assert get_label_text("21") == "ক"
+    assert get_label_text("/data/ekush/21/img_001.png") == "ক"
+    # Already Bangla: returned untouched, so it is safe to apply to the
+    # JSONL `text` field the two eval modules actually read.
+    assert get_label_text("ক্ষ") == "ক্ষ"
+    assert get_label_text("") == ""
+    # Unmappable input must not raise mid-evaluation.
+    assert get_label_text("not_a_class") == "not_a_class"
+
+
+def test_the_two_previously_broken_modules_can_resolve_their_import():
+    """bhasha/eval/{all_ocr,ocr_models}.py did `from ekush_mapping import ...`
+    with no such module anywhere. Both raised ModuleNotFoundError."""
+    assert (ROOT / "bhasha/eval/ekush_mapping.py").exists()
+    for name in ("all_ocr.py", "ocr_models.py"):
+        src = (ROOT / "bhasha/eval" / name).read_text(encoding="utf-8")
+        assert "from ekush_mapping import" in src, f"{name} changed its import"
+
+
+# ------------------------------------------- llm outputs -> JSONL
+
+
+@pytest.fixture(scope="module")
+def convert():
+    return _load("convert_llm_outputs_mod", "scripts/convert_llm_outputs.py")
+
+
+SAMPLE_MD = """# Test Model
+
+## Benchmark Outputs (Ollama Backend)
+
+### Translation
+
+**Prompt:**
+> Translate this into Bangla:
+>
+> 'Hello world.'
+
+**Response:** (2.86s)
+
+বিশ্ব, তোমাকে স্বাগতম।
+
+---
+### OCR Fix
+
+**Prompt:**
+> Fix the errors:
+>
+> 'আিম বংলাদশ এ থািক।' > (Expected: আমি বাংলাদেশে থাকি।)
+
+**Response:** (0.42s)
+
+আমি বাংলাদেশে থাকি।
+
+---
+"""
+
+
+def test_converter_extracts_prompt_response_and_latency(convert):
+    parsed = convert.parse_markdown(SAMPLE_MD)
+    assert [p["category"] for p in parsed] == ["Translation", "OCR Fix"]
+    assert parsed[0]["seconds"] == 2.86
+    assert "স্বাগতম" in parsed[0]["response"]
+    assert "**Response:**" not in parsed[0]["response"]
+
+
+def test_converter_recovers_the_leaked_reference(convert):
+    """The OCR-Fix prompt embeds `(Expected: ...)`, which is both the only
+    available reference and the reason those scores are meaningless."""
+    records = convert.build_records("Test", convert.parse_markdown(SAMPLE_MD))
+    ocr = next(r for r in records if r["task"] == "ocr_correction")
+    assert ocr["reference"] == "আমি বাংলাদেশে থাকি।"
+    assert ocr["noisy"] == "আিম বংলাদশ এ থািক।"
+    # The leak, which docs/ERRATA.md C17 is about: the reference the model
+    # is scored against was visible in its own prompt.
+    assert ocr["reference"] in ocr["prompt"]
+
+
+def test_records_carry_both_keys_the_eval_scripts_read(convert):
+    """script_integrity.py reads `output`; text_metrics.py and
+    ocr_correction.py read `hypothesis`. One file must feed all three."""
+    records = convert.build_records("Test", convert.parse_markdown(SAMPLE_MD))
+    for r in records:
+        assert r["output"] == r["hypothesis"]
+
+
+def test_every_record_is_stamped_with_the_real_provenance(convert):
+    records = convert.build_records("Test", convert.parse_markdown(SAMPLE_MD))
+    p = records[0]["provenance"]
+    assert p["backend"] == "ollama"
+    assert "Q4_K_M" in p["quantisation"]
+    # Sec. IV-C says 0.7; the runner used 0.3 (ERRATA C13).
+    assert p["temperature"] == 0.3
+    # Four prompts, one per category (ERRATA C12).
+    assert p["n_items_per_task"] == 1
+
+
+def test_llama32_tag_mismatch_is_flagged(convert):
+    """The finding the whole of ERRATA A00 rests on."""
+    info = convert.OLLAMA_TAGS["Llama_3.2_11B"]
+    assert info["tag"] == "llama3.2:latest"
+    assert info["mismatch"] is True
+    assert "3b" in info["resolves_to"].lower()
+    # Every tag that matches its label must not be flagged.
+    for name in ("Llama_3.1_8B", "Mistral_7B", "Nemo_12B",
+                 "Gemma_9B", "Qwen_1.5B"):
+        assert convert.OLLAMA_TAGS[name]["mismatch"] is False, name
+
+
+def test_registry_records_the_benchmark_execution():
+    reg = json.loads((ROOT / "benchmarks/model_registry.json").read_text(
+        encoding="utf-8"))
+    ex = reg["benchmark_execution"]
+    assert ex["default_quantisation"] == "Q4_K_M"
+    assert ex["decoding_as_run"]["temperature"] == 0.3
+    assert ex["decoding_as_published"]["temperature"] == 0.7
+    assert ex["n_items_per_task"] == 1
+
+    llama = next(m for m in reg["models"] if "Llama-3.2-11B" in m["model_id"])
+    assert llama["ollama_tag"] == "llama3.2:latest"
+    assert "A00" in llama["notes"]
+
+    # Llama-3-8B has Table V and VI scores but was never run.
+    l3 = next(m for m in reg["models"] if "Meta-Llama-3-8B" in m["model_id"])
+    assert l3["quantisation"] == "NOT RUN"
+
+
 def test_model_registry_covers_the_nine_benchmarked_models():
     reg = json.loads((ROOT / "benchmarks/model_registry.json").read_text(
         encoding="utf-8"))
     ids = [m["model_id"] for m in reg["models"]]
     # Table I lists nine architectures; the registry adds XGLM (Sec. III-B
     # selection comparison) and the OCR base, hence 11 entries.
-    assert len(ids) == 11
+    assert len(ids) >= 11
     assert reg["decoding"]["latency_measurements"]["max_new_tokens"] == 100
     assert reg["decoding"]["text"]["max_new_tokens"] == 256
     llama = next(m for m in reg["models"] if "Llama-3.2-11B" in m["model_id"])

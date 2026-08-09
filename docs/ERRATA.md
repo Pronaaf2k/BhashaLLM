@@ -87,6 +87,80 @@ data from the manuscript without pointing at this entry.
 
 ---
 
+## A00. The benchmarked "Llama-3.2-11B" was almost certainly a 3B model
+
+**This is the most serious item in this document. It bears on the paper's
+central conclusion.**
+
+`bhasha/llm/run_benchmark_suite.py` is the script that produced the
+generations in `llm outputs/`. Every one of those files carries the header
+"Benchmark Outputs (Ollama Backend)". The script's model table maps the
+paper's model names onto Ollama tags:
+
+```python
+MODELS = {
+    "Qwen_1.5B":     "qwen2.5:1.5b",
+    "Gemma_2B":      "gemma2:2b",
+    "Qwen_3B":       "qwen2.5:3b",
+    "Mistral_7B":    "mistral:latest",
+    "Gemma_9B":      "gemma2:9b",
+    "Nemo_12B":      "mistral-nemo:latest",
+    "Llama_3.1_8B":  "llama3.1:latest",
+    "Llama_3.2_11B": "llama3.2:latest",      # <-- this line
+    "bn_rag_8B":     "hf.co/BanglaLLM/bangla-llama-13b-base-v0.1-GGUF"
+}
+```
+
+**`llama3.2:latest` is the 3-billion-parameter text model.** In Ollama's
+library the `llama3.2` tag defaults to `llama3.2:3b` — 3.21B parameters,
+Q4_K_M, a 2.0 GB download. Llama-3.2 was released in 1B and 3B text sizes;
+the 11B model is *Llama-3.2-11B-Vision* and is served under a different
+tag entirely (`llama3.2-vision:11b`).
+
+Every other entry in the table is consistent with its label. The explicit
+tags (`gemma2:2b`, `gemma2:9b`, `qwen2.5:1.5b`, `qwen2.5:3b`) name their
+sizes, and `mistral:latest` (7B), `llama3.1:latest` (8B) and
+`mistral-nemo:latest` (12B) resolve to the sizes Table I gives. **Only the
+Llama-3.2 row is wrong, and it is the row the paper's conclusion rests
+on.**
+
+**What this affects.** Everything attributed to "Llama-3.2-11B":
+
+| Claim | Location |
+| --- | --- |
+| "Llama-3.2-11B is identified as the strongest candidate" | Abstract |
+| "identifying Llama-3.2-11B as the strongest candidate under a 16GB VRAM budget" | Sec. I |
+| Selected as the primary generation and translation model | Sec. III-B |
+| 14/15 on the human rubric, 5/5 semantic accuracy, 5/5 script correctness | Table V |
+| Highest ROUGE of the set, 0.52 / 0.26 / 0.50 | Table VI |
+| "over 99% of generations" in correct Bangla script | Abstract, Sec. V-C |
+| 88% correct fixes on OCR correction | Sec. V-B |
+| 1450 ms, 69 tokens/s | Sec. V-C |
+| "an 11-billion-parameter model trainable on 16GB" | Abstract, Sec. VI-E |
+| Table II's entire feasibility analysis | Table II, Sec. III-C |
+
+Group B1 already records that no 11B model was ever *fine-tuned*, and took
+the position that it was at least "evaluated by inference under
+quantisation". This entry withdraws even that: the evidence in the
+repository indicates the model evaluated was Llama-3.2-**3B**.
+
+**Why this is recoverable.** The finding does not damage the result, it
+relocates it. "A 3B model held Bangla script in over 99% of generations and
+beat every larger model tested" is a *more* interesting claim than the one
+in the paper, and it fits the hardware story better: a 3B model at Q4_K_M
+is about 2 GB, which makes the 16 GB budget comfortable rather than tight.
+The Section VI-B discussion of small models would need rewriting, and
+Table II becomes a pure feasibility analysis with no model behind it.
+
+**What to do.** Confirm by running `ollama list` on the machine that
+produced `llm outputs/` and reading the digest and size for the
+`llama3.2` entry. If it is 2.0 GB, the model was the 3B. Then either
+re-run the benchmark with `llama3.2-vision:11b` and report those numbers,
+or relabel throughout. Do not publish the 11B attribution without one or
+the other.
+
+---
+
 ## Group A — correct in camera-ready if the window is open
 
 ### A1. Software versions in Section IV-A are wrong
@@ -524,6 +598,205 @@ describes a decision or a description written after the fact.
 **Nothing was removed.** The files are retained. Section VII lists
 retrieval as the first item of future work, which makes an existing
 harness an asset rather than a contradiction, provided it is labelled.
+
+### C11. The benchmark ran on a serving stack the paper does not describe
+
+Section IV-A specifies the software: "PyTorch 2.1.2, Transformers 4.37.2,
+BitsAndBytes 0.43.0, and PEFT 0.7.1" (versions corrected in A1). Sections
+III-C and III-F describe 4-bit NF4 quantisation via BitsAndBytes.
+
+The nine-model benchmark used **none of that**.
+`bhasha/llm/run_benchmark_suite.py` posts to `http://localhost:11434/api/generate` —
+Ollama — and every file in `llm outputs/` is headed "Benchmark Outputs
+(Ollama Backend)". Ollama serves **GGUF at Q4_K_M** by default, through
+llama.cpp. The `llama_cpp/` directory in this repository, previously
+unexplained, is consistent with this.
+
+This is the answer to B10's open question about unrecorded quantisation,
+and it is a better answer than "unknown": the benchmark quantisation was
+Q4_K_M GGUF, not the NF4 the methodology describes. `benchmarks/model_registry.json`
+now records this per model.
+
+Two consequences worth stating plainly:
+
+1. **The benchmarked models and the fine-tuned models were served
+   differently.** Tables V, VI and VII compare Q4_K_M GGUF inference,
+   while Phases 1–3 trained NF4 via BitsAndBytes. Quantisation format
+   affects output quality and script integrity, so the benchmark does not
+   measure the configuration the deployment section describes.
+2. **`llama_cpp/` is part of the method, not a leftover.** It should be
+   named in Section IV-A.
+
+### C12. Table V and Table VI rest on one item per task
+
+`run_benchmark_suite.py` defines exactly **four prompts** — one each for
+Translation, Summarization, OCR Fix and Creative. There is no item set.
+
+So the Table V scores (semantic accuracy, script correctness, naturalness,
+each out of 5) are a rater's judgement of **a single translation**, and
+Table VI's ROUGE-1/2/L are computed on **a single summary** per model.
+
+This is why `docs/TRACEABILITY.md` could not find an evaluation item set:
+N is 1. A ROUGE score on one sentence pair has no meaningful precision, and
+a 14/15 against a 12/15 on one item is not a ranking. Section IV-C's
+"Evaluation used fixed decoding so that comparisons across the nine models
+are not confounded by sampling" addresses a much smaller source of variance
+than the one that dominates here.
+
+`benchmarks/items/` and the schema in `benchmarks/README.md` exist for the
+fix: fix an item set of meaningful size, commit it, and re-run. Until then,
+Tables V and VI should be read as illustrative examples rather than
+measurements, and N should be stated.
+
+### C13. The benchmark decoding parameters contradict Section IV-C
+
+Section IV-C: "temperature 0.7, top-p 0.9, repetition penalty 1.1, and 256
+new tokens for text."
+
+`run_benchmark_suite.py`:
+
+```python
+"options": {
+    "temperature": 0.3,   # using low temp for consistent tests
+    "top_p": 0.9,
+    "num_predict": 256
+}
+```
+
+Temperature was **0.3, not 0.7**, and **no repetition penalty was set** —
+Ollama's default `repeat_penalty` is 1.1, so that one may coincidentally
+match, but it was not set explicitly and is not recorded. Only `top_p` and
+the token count agree with the paper.
+
+Temperature matters here more than usual: 0.3 suppresses exactly the
+sampling excursions that produce the script drift the paper measures, so
+the script-confusion rates were collected under settings that understate
+the effect relative to the 0.7 the paper reports.
+
+### C14. The nine benchmarked models are not Table I's nine models
+
+Table I lists: Qwen-2.5-1.5B, Qwen-2.5-3B, Gemma-2-2B, Gemma-2-9B,
+Mistral-7B-v0.3, Mistral-Nemo-12B, Llama-3-8B, Llama-3.1-8B,
+Llama-3.2-11B.
+
+`run_benchmark_suite.py` runs: Qwen_1.5B, Gemma_2B, Qwen_3B, Mistral_7B,
+Gemma_9B, Nemo_12B, Llama_3.1_8B, Llama_3.2_11B, **bn_rag_8B**.
+
+Two mismatches:
+
+- **Llama-3-8B is not in the runner and has no output file.** There is no
+  `Llama_3_8B.md` in `llm outputs/`. Yet Table V gives it 6/15 and Table VI
+  gives it ROUGE 0.32 / 0.11 / 0.30 with output language "Bangla (poor)".
+  Those numbers have no generation behind them in this repository.
+- **`bn_rag_8B` is in the runner and has an output file**, and it is a
+  retrieval-augmented model — the approach Section III-D explains was
+  deliberately not used (C5). It is not in Table I.
+
+`llm outputs/` also holds `Gemma_4_E2B.md` and `qwen_bangla.md`, neither of
+which appears in Table I.
+
+So the set of nine models in the paper and the set of nine models that were
+run overlap in eight places and differ in one, and the differing one is a
+model the methodology section rules out.
+
+### C17. The OCR-correction prompt contains its own answer
+
+The prompt sent to every model for the OCR-Fix task, verbatim from
+`bhasha/llm/run_benchmark_suite.py`:
+
+> Fix the spelling and grammatical errors in this broken OCR output. Do not
+> add extra commentary:
+>
+> `'আিম বংলাদশ এ থািক। আমার দশনর নাম বংলাদশ। আমরা সবই ভই ভাই।' > (Expected: আমি বাংলাদেশে থাকি। আমার দেশের নাম বাংলাদেশ। আমরা সবাই ভাই ভাই।)`
+
+**The correct answer is in the prompt.** A model does not have to correct
+anything; it has to copy the string after `Expected:`. The task measures
+instruction-following and copying, not Bangla orthographic repair.
+
+This was found by converting the committed generations to JSONL and
+scoring them with `eval/ocr_correction.py`
+(`scripts/convert_llm_outputs.py`). Eight of the ten models score a
+**correction rate of 1.00**, which is what copying produces and not what a
+distribution of genuine correction ability looks like.
+
+The three-rate design of Sec. IV-D is what makes the leak visible rather
+than flattering. Correction rate alone says every model is perfect. Net
+error reduction says otherwise:
+
+| Model | correction rate | over-correction | net error reduction |
+| --- | --- | --- | --- |
+| Gemma-9B | 1.00 | 0.00 | **+1.00** |
+| Llama-3.1-8B | 1.00 | 0.00 | **+1.00** |
+| Llama-3.2-11B* | 1.00 | 0.00 | +0.86 |
+| Qwen-3B | 1.00 | 0.02 | +0.93 |
+| Nemo-12B | 1.00 | 0.00 | **−1.21** |
+| Qwen-1.5B | 0.86 | 0.00 | **−6.14** |
+| Mistral-7B | 0.00 | 0.80 | **−9.86** |
+| bn_rag_8B | 1.00 | 0.22 | **−46.4** |
+
+\* see A00 — this was probably the 3B model.
+
+A negative net error reduction means the output is further from the
+reference than the input was: the model copied the expected string *and*
+appended commentary, despite "Do not add extra commentary". Sec. V-B's
+reported 88% / 85% / 35% cannot be reproduced from these generations, and
+the ordering it describes is only partly visible — Mistral-7B is indeed
+the worst, which is the one clear agreement.
+
+**What to do.** Rewrite the prompt without the `(Expected: ...)` clause,
+keep the reference in the item file where the model cannot see it
+(`benchmarks/items/ocr_correction.jsonl`, schema in
+`benchmarks/README.md`), and re-run. Until then, Sec. V-B's correction
+rates should be withdrawn rather than qualified: there is no
+interpretation under which a leaked answer measures correction ability.
+
+### C15. Two evaluation modules import a module that does not exist
+
+`bhasha/eval/all_ocr.py` and `bhasha/eval/ocr_models.py` both begin with:
+
+```python
+from ekush_mapping import get_label_text
+```
+
+There is no `ekush_mapping.py` anywhere in the repository. Both modules
+raise `ModuleNotFoundError` on import, so neither the comprehensive OCR
+evaluation nor the baseline-vs-fine-tuned comparison could be run from a
+clean checkout. This is the same class of defect as the missing
+`bhasha.data` package (C2).
+
+Two further scripts (`bhasha/scripts/debug_dataset_shapes.py`,
+`bhasha/scripts/train_ocr_improved.py`) use `from model_paths import ...`
+rather than `from bhasha.scripts.model_paths import ...`, so they import
+only when the working directory happens to be `bhasha/scripts/`.
+
+**Now.** `bhasha/eval/ekush_mapping.py` supplies `get_label_text` with the
+Ekush label convention documented, and falls back to a path-derived label
+when no mapping file is present, so the two modules import and run.
+
+### C16. The only committed training log is of a crashed run
+
+`logs/training_log.txt` is the repository's sole training log. It ends:
+
+```
+File ".../transformers/models/qwen2_vl/modeling_qwen2_vl.py", line 281, in forward
+    hidden_states = self.proj(hidden_states.to(dtype=target_dtype)).view(-1, self.embed_dim)
+RuntimeError: shape '[-1, 1280]' is invalid for input of size 262144
+  0%|          | 0/1500 [00:00<?, ?it/s]
+```
+
+The run failed at step 0 of 1500 with a vision-tower shape mismatch. It is
+not evidence for any row of Table IV.
+
+Separately, `report/training_metrics.csv` holds 132 real training points
+and 65 evaluation points, but reconciles with **no** row of Table IV: it
+ends at train loss 0.2814, eval loss 0.2874, epoch 0.1356, at learning rate
+2e-4. Table IV gives Phase 1 train 1.31, Phase 2 val 0.018, Phase 3 val
+0.31 — and Phase 3 used 1e-4, so the learning rate rules that phase out
+while the loss rules out the other two.
+
+The three losses in Table IV currently have no artifact behind them.
+`logs/phase{1,2,3}_summary.json`, written by `bhasha/utils/run_summary.py`,
+is where they should come from.
 
 ### C6. The web frontend described in Section III-F did not exist
 

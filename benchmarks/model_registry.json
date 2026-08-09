@@ -17,7 +17,6 @@
     },
     "traceability": "docs/TRACEABILITY.md, row 'Quantisation of the 9 models'."
   },
-
   "decoding": {
     "_source": "Paper Sec. IV-C. Held constant across all nine models so comparisons are not confounded by sampling.",
     "text": {
@@ -39,124 +38,132 @@
       "_source": "Paper Sec. IV-C: an English instruction wrapper 'made language reversion markedly more likely in the smaller models'."
     }
   },
-
   "models": [
     {
       "model_id": "Qwen/Qwen2.5-1.5B-Instruct",
       "family": "Qwen",
       "parameters_b": 1.5,
-      "quantisation": "nf4",
-      "runtime": "transformers+bitsandbytes",
+      "quantisation": "Q4_K_M",
+      "runtime": "ollama / llama.cpp (GGUF)",
       "revision": "FILL",
       "context_length": 512,
       "vram_gb": null,
       "role": "Phase 1 + Phase 2 QLoRA base; lightweight generation alternative (Sec. III-B)",
-      "served_on": "FILL",
-      "notes": "Selected over XGLM-1.7B on perplexity in Sec. III-B; see docs/ERRATA.md B6 and eval/compute_bpc.py for the tokenizer-independent form of that comparison. Table VI records 23% script confusion for this model."
+      "served_on": "see llm outputs/*.md; exact date not recorded",
+      "notes": "Selected over XGLM-1.7B on perplexity in Sec. III-B; see docs/ERRATA.md B6 and eval/compute_bpc.py for the tokenizer-independent form of that comparison. Table VI records 23% script confusion for this model.",
+      "ollama_tag": "qwen2.5:1.5b"
     },
     {
       "model_id": "Qwen/Qwen2.5-3B-Instruct",
       "family": "Qwen",
       "parameters_b": 3,
-      "quantisation": "FILL",
-      "runtime": "FILL",
+      "quantisation": "Q4_K_M",
+      "runtime": "ollama / llama.cpp (GGUF)",
       "revision": "FILL",
       "context_length": 512,
       "vram_gb": null,
       "role": "benchmark only (Table I: mid-range edge-device fit)",
-      "served_on": "FILL",
-      "notes": "Table VI records mixed Bangla/Devanagari output."
+      "served_on": "see llm outputs/*.md; exact date not recorded",
+      "notes": "Table VI records mixed Bangla/Devanagari output.",
+      "ollama_tag": "qwen2.5:3b"
     },
     {
       "model_id": "google/gemma-2-2b-it",
       "family": "Gemma",
       "parameters_b": 2,
-      "quantisation": "FILL",
-      "runtime": "FILL",
+      "quantisation": "Q4_K_M",
+      "runtime": "ollama / llama.cpp (GGUF)",
       "revision": "FILL",
       "context_length": 512,
       "vram_gb": null,
       "role": "benchmark only (Table I: high-efficiency small model)",
-      "served_on": "FILL",
-      "notes": "Table VI records English (incorrect) output language."
+      "served_on": "see llm outputs/*.md; exact date not recorded",
+      "notes": "Table VI records English (incorrect) output language.",
+      "ollama_tag": "gemma2:2b"
     },
     {
       "model_id": "google/gemma-2-9b-it",
       "family": "Gemma",
       "parameters_b": 9,
-      "quantisation": "FILL",
-      "runtime": "FILL",
+      "quantisation": "Q4_K_M",
+      "runtime": "ollama / llama.cpp (GGUF)",
       "revision": "FILL",
       "context_length": 512,
       "vram_gb": null,
       "role": "benchmark only (Table I: reasoning-focused)",
-      "served_on": "FILL",
-      "notes": "Cannot be served in fp16 on 16 GB. Table II records LoRA r=16 in fp16 failing at load time on this card. One of three models that held correct Bangla per Sec. V-A."
+      "served_on": "see llm outputs/*.md; exact date not recorded",
+      "notes": "Cannot be served in fp16 on 16 GB. Table II records LoRA r=16 in fp16 failing at load time on this card. One of three models that held correct Bangla per Sec. V-A.",
+      "ollama_tag": "gemma2:9b"
     },
     {
       "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
       "family": "Mistral",
       "parameters_b": 7,
-      "quantisation": "FILL",
-      "runtime": "FILL",
+      "quantisation": "Q4_K_M",
+      "runtime": "ollama / llama.cpp (GGUF)",
       "revision": "FILL",
       "context_length": 512,
       "vram_gb": null,
       "role": "benchmark only (Table I: strong instruction following)",
-      "served_on": "FILL",
-      "notes": "Worst OCR-correction pattern in the set per Sec. V-B: 35% correction rate against a 30% over-correction rate. See eval/ocr_correction.py for the denominators those rates need."
+      "served_on": "see llm outputs/*.md; exact date not recorded",
+      "notes": "Worst OCR-correction pattern in the set per Sec. V-B: 35% correction rate against a 30% over-correction rate. See eval/ocr_correction.py for the denominators those rates need.",
+      "ollama_tag": "mistral:latest"
     },
     {
       "model_id": "mistralai/Mistral-Nemo-Instruct-2407",
       "family": "Mistral",
       "parameters_b": 12,
-      "quantisation": "FILL",
-      "runtime": "FILL",
+      "quantisation": "Q4_K_M",
+      "runtime": "ollama / llama.cpp (GGUF)",
       "revision": "FILL",
       "context_length": 512,
       "vram_gb": null,
       "role": "benchmark only (Table I: 128k context window)",
-      "served_on": "FILL",
-      "notes": "Cannot be served in fp16 on 16 GB. Table VI records mixed (unstable) output language."
+      "served_on": "see llm outputs/*.md; exact date not recorded",
+      "notes": "Cannot be served in fp16 on 16 GB. Table VI records mixed (unstable) output language.",
+      "ollama_tag": "mistral-nemo:latest"
     },
     {
       "model_id": "meta-llama/Meta-Llama-3-8B-Instruct",
       "family": "Llama",
       "parameters_b": 8,
-      "quantisation": "FILL",
-      "runtime": "FILL",
+      "quantisation": "NOT RUN",
+      "runtime": "NOT RUN",
       "revision": "FILL",
       "context_length": 512,
       "vram_gb": null,
       "role": "benchmark only (Table I: standard baseline)",
-      "served_on": "FILL",
-      "notes": "Cannot be served in fp16 on 16 GB."
+      "served_on": "see llm outputs/*.md; exact date not recorded",
+      "notes": "This model is in Table I and has scores in Tables V and VI, but it is absent from bhasha/llm/run_benchmark_suite.py and there is no Llama_3_8B.md in llm outputs/. Its reported numbers have no generation behind them in this repository. See docs/ERRATA.md C14.  ||  Cannot be served in fp16 on 16 GB.",
+      "ollama_tag": null
     },
     {
       "model_id": "meta-llama/Llama-3.1-8B-Instruct",
       "family": "Llama",
       "parameters_b": 8,
-      "quantisation": "FILL",
-      "runtime": "FILL",
+      "quantisation": "Q4_K_M",
+      "runtime": "ollama / llama.cpp (GGUF)",
       "revision": "FILL",
       "context_length": 512,
       "vram_gb": null,
       "role": "benchmark; second-best on the human rubric (12/15, Table V)",
-      "served_on": "FILL",
-      "notes": "Cannot be served in fp16 on 16 GB."
+      "served_on": "see llm outputs/*.md; exact date not recorded",
+      "notes": "Cannot be served in fp16 on 16 GB.",
+      "ollama_tag": "llama3.1:latest"
     },
     {
       "model_id": "meta-llama/Llama-3.2-11B-Vision-Instruct",
       "family": "Llama",
       "parameters_b": 11,
-      "quantisation": "FILL",
-      "runtime": "FILL",
+      "quantisation": "Q4_K_M",
+      "runtime": "ollama / llama.cpp (GGUF)",
       "revision": "FILL",
       "context_length": 512,
       "vram_gb": null,
       "role": "primary generation and translation model (Sec. III-B); 14/15 on the human rubric",
-      "served_on": "FILL",
-      "notes": "IMPORTANT: evaluated by quantised INFERENCE only. No QLoRA fine-tuning of this model was performed -- see docs/ERRATA.md B1. Table II's 'used here' row and the 9.4 GB peak are a feasibility analysis, not a record of a run."
+      "served_on": "see llm outputs/*.md; exact date not recorded",
+      "notes": "CRITICAL: `llama3.2:latest` resolves to llama3.2:3b (3.21B params, ~2.0 GB), NOT the 11B vision model. The generations in llm outputs/Llama_3.2_11B.md were very probably produced by a 3B model. This is the model the paper's central conclusion rests on. See docs/ERRATA.md A00.  ||  IMPORTANT: evaluated by quantised INFERENCE only. No QLoRA fine-tuning of this model was performed -- see docs/ERRATA.md B1. Table II's 'used here' row and the 9.4 GB peak are a feasibility analysis, not a record of a run.",
+      "ollama_tag": "llama3.2:latest"
     },
     {
       "model_id": "facebook/xglm-1.7b",
@@ -183,6 +190,44 @@
       "role": "Phase 3 QLoRA OCR base (Sec. IV-C)",
       "served_on": "FILL",
       "notes": "Qwen3-VL-style architecture. The committed adapter was trained on BanglaWriting, not the Ekush + self-collected composition Sec. IV-C describes -- see docs/ERRATA.md C1."
+    },
+    {
+      "model_id": "hf.co/BanglaLLM/bangla-llama-13b-base-v0.1-GGUF",
+      "family": "BanglaLLM",
+      "parameters_b": 13,
+      "quantisation": "GGUF (bit width unrecorded)",
+      "runtime": "ollama / llama.cpp (GGUF)",
+      "ollama_tag": "hf.co/BanglaLLM/bangla-llama-13b-base-v0.1-GGUF",
+      "revision": "FILL",
+      "context_length": 512,
+      "vram_gb": null,
+      "role": "benchmarked as `bn_rag_8B`, but NOT one of Table I's nine models",
+      "served_on": "see llm outputs/bn_rag_8B.md",
+      "notes": "Named 8B in the output file, 13B in the tag. Retrieval-augmented, which Sec. III-D says was deliberately not used. See docs/ERRATA.md C5 and C14."
     }
-  ]
+  ],
+  "benchmark_execution": {
+    "_source": "bhasha/llm/run_benchmark_suite.py + the 'Ollama Backend' header in llm outputs/*.md",
+    "backend": "Ollama HTTP API at http://localhost:11434/api/generate",
+    "serving_format": "GGUF via llama.cpp",
+    "default_quantisation": "Q4_K_M",
+    "quantisation_note": "This answers the question docs/ERRATA.md B10 left open. The nine-model benchmark was served at Q4_K_M GGUF, NOT the 4-bit NF4 via BitsAndBytes that Sec. III-C and Sec. IV-A describe. The benchmarked and fine-tuned configurations therefore differ. See ERRATA C11.",
+    "decoding_as_run": {
+      "temperature": 0.3,
+      "top_p": 0.9,
+      "repetition_penalty": "not set",
+      "num_predict": 256
+    },
+    "decoding_as_published": {
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "repetition_penalty": 1.1,
+      "max_new_tokens": 256
+    },
+    "decoding_note": "Temperature was 0.3, not the 0.7 of Sec. IV-C. See ERRATA C13.",
+    "n_items_per_task": 1,
+    "n_note": "Four prompts total, one per category, so N=1 per task per model. Tables V and VI rest on a single item each. See ERRATA C12.",
+    "prompt_defect": "The OCR-Fix prompt embeds its own expected answer, so that task measures copying rather than correction. See ERRATA C17.",
+    "recovered_by": "python scripts/convert_llm_outputs.py"
+  }
 }

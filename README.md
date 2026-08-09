@@ -28,10 +28,26 @@ The manuscript is published and fixed. This repository is not, and several
 figures in the paper need qualifiers they did not receive in print. The
 substantive ones:
 
-- **No 11-billion-parameter model was fine-tuned.** Llama-3.2-11B was
-  evaluated by quantised inference. QLoRA training was applied to the 1.5B
-  instruction model and the vision-language OCR model. Table II of the
-  paper is a feasibility analysis, not a record of a run.
+- **The benchmarked "Llama-3.2-11B" was almost certainly a 3B model.**
+  `bhasha/llm/run_benchmark_suite.py` maps that row to the Ollama tag
+  `llama3.2:latest`, which resolves to `llama3.2:3b` — 3.21B parameters,
+  Q4_K_M, a 2.0 GB download. The 11B model is Llama-3.2-11B-**Vision** and
+  is served under a different tag. This affects the paper's central
+  conclusion and every figure attributed to that model.
+  [`docs/ERRATA.md`](docs/ERRATA.md) §A00.
+
+- **The nine-model benchmark ran on Ollama, not the paper's stack.** GGUF
+  at Q4_K_M via llama.cpp, not 4-bit NF4 via BitsAndBytes; temperature 0.3,
+  not the 0.7 of Sec. IV-C; and **one prompt per task**, so Tables V and VI
+  rest on N=1 per model. §C11–C13.
+
+- **The OCR-correction prompt contains its own answer.** Every model was
+  shown `(Expected: ...)` inside the prompt, so Sec. V-B's correction rates
+  measure copying. §C17.
+
+- **No 11-billion-parameter model was fine-tuned.** QLoRA training was
+  applied to the 1.5B instruction model and the vision-language OCR model.
+  Table II of the paper is a feasibility analysis, not a record of a run.
 - **The software versions in Section IV-A are wrong** and describe an
   environment that could not have run this project. The correct versions
   are below and in `docs/environment_capture.txt`.
@@ -231,6 +247,7 @@ they differ.
 | Sec. III-E — blind rating sheets | `python eval/make_rating_sheets.py --pred benchmarks/raw/*.jsonl --seed 42` | `human_eval/{rating_sheet.csv,rating_sheet.md,blinding_map.json}` |
 | Sec. III-F — local footprint | `bash scripts/capture_footprint.sh` | `docs/footprint.txt` |
 | Sec. IV-B — tokeniser sanity checks | `python eval/tokenizer_sanity.py --models Qwen/Qwen2.5-1.5B-Instruct facebook/xglm-1.7b` | `eval/tokenizer_sanity.json` |
+| Tables V, VI — recover the committed generations | `python scripts/convert_llm_outputs.py` | `benchmarks/raw/*.jsonl` from `llm outputs/*.md` |
 | Sec. IV-B — audit the corpus archive | `python scripts/audit_text_corpus.py --tokenizer Qwen/Qwen2.5-1.5B-Instruct` | `data/text_corpus_audit.json`, `data/text_raw.sha256` |
 | Sec. IV-B — corpus preprocessing and splits | `python -m bhasha.data.text_corpus --input data/raw/nazrul data/raw/tagore --out-dir data/splits --tokenizer Qwen/Qwen2.5-1.5B-Instruct` | `data/splits/{train,val,test}.txt`, `split_manifest.json` |
 | Sec. IV-C — Ekush stratified sample | `python -m bhasha.data.ekush_sampling --input data/processed/ekush_prepared/train.jsonl --n 6000 --out data/processed/ekush_sampled_6000.jsonl` | sample + stratification report |
