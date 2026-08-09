@@ -1,8 +1,4 @@
-# Files that are not Python modules but are needed to reproduce the paper.
-#
-# find_packages() carries only importable modules, so without this the
-# phase configs and the Section III-F web frontend do not ship, and an
-# installed copy cannot read its own Table III configuration. See
+
 # docs/ERRATA.md C26.
 
 include README.md
@@ -12,10 +8,10 @@ include DATA_CARD.md
 include requirements.txt
 include requirements-full.lock
 
-# Table III, one YAML per training phase. bhasha/config.py reads these.
+# one YAML per training phase. bhasha/config.py reads these
 recursive-include configs *.yaml
 
-# The optional web frontend (paper Sec. III-F).
+# The optional web frontend 
 recursive-include bhasha/app/static *.html
 
 # Errata and the traceability register: a reader who installs the package
