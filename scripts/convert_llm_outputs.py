@@ -29,7 +29,7 @@ rediscovered:
   Table VI's ROUGE figures are computed on a single summary per model (C12).
 * **`llama3.2:latest` is the 3B model**, so the file named
   `Llama_3.2_11B.md` was very probably not produced by an 11B model
-  (`docs/ERRATA.md` A00).
+  (`docs/ERRATA.md` A7).
 
 References
 ----------
@@ -112,7 +112,7 @@ PROVENANCE = {
 }
 
 # Ollama tag -> what it actually resolves to. The first entry is the one
-# that matters; see docs/ERRATA.md A00.
+# that matters; see docs/ERRATA.md A7.
 OLLAMA_TAGS = {
     "Llama_3.2_11B": {
         "tag": "llama3.2:latest",
@@ -122,7 +122,7 @@ OLLAMA_TAGS = {
         "note": "Ollama's llama3.2 tag defaults to the 3B TEXT model. The "
                 "11B model is Llama-3.2-11B-Vision, served as "
                 "llama3.2-vision:11b. This file was very probably NOT "
-                "produced by an 11B model. See docs/ERRATA.md A00.",
+                "produced by an 11B model. See docs/ERRATA.md A7.",
     },
     "Llama_3.1_8B": {"tag": "llama3.1:latest", "resolves_to": "llama3.1:8b", "mismatch": False},
     "Mistral_7B": {"tag": "mistral:latest", "resolves_to": "mistral:7b (v0.3)", "mismatch": False},
@@ -307,7 +307,7 @@ def main() -> int:
     for s in summary:
         flag = ""
         if s.get("label_mismatch"):
-            flag = "  <-- LABEL MISMATCH, see docs/ERRATA.md A00/C14"
+            flag = "  <-- LABEL MISMATCH, see docs/ERRATA.md A7/C14"
         print(f"  {s['model']:18s} {s['n']} records  "
               f"{s.get('ollama_tag') or '':45s}{flag}")
 

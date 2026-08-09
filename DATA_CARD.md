@@ -135,7 +135,7 @@ which applies to code only.
 > self-collected pages. The Phase-3 loader, the OCR evaluation script and
 > the production model-path resolver all point at
 > `data/processed/banglawriting` and `models/ocr_adapters/banglawriting_adapter`.
-> The full evidence table is in `docs/ERRATA.md` §A0. Its URL, access date,
+> The full evidence table is in `docs/ERRATA.md` §A10. Its URL, access date,
 > licence and size must be filled in above before release, and it must be
 > added to the reference list. Redistributing or building on a dataset the
 > paper never names is the kind of omission that is cheap to fix now and

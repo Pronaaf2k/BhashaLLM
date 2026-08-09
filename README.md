@@ -28,13 +28,42 @@ The manuscript is published and fixed. This repository is not, and several
 figures in the paper need qualifiers they did not receive in print. The
 substantive ones:
 
+- **Table VII's 28% → 12% OCR improvement has no artifact, and this
+  repository's own reports reverse its sign.**
+  `report/ocr_benchmark_report.md` evaluates the paper's own model and
+  reports CER rising from **18.1% to 92.7%** after fine-tuning;
+  `report/COMPREHENSIVE_OCR_EVALUATION.md` reports **0.00% accuracy** for
+  both the baseline and the fine-tuned model. Run
+  `python scripts/recover_committed_evidence.py` to see all four figures
+  side by side. [`docs/ERRATA.md`](docs/ERRATA.md) §A6.
+
+- **Phase 2 was not trained on grading data.** Section IV-C and
+  reference [23] describe 500 self-generated grading pairs; no such file
+  exists. `train_instruct.py` reads a Kaggle-derived set of spelling,
+  morphology, vocabulary and proofreading pairs — up to 20,000 from the
+  spelling source alone — and one of those tasks has a constant answer.
+  This is the second of the three training phases whose data does not
+  match its description. [`docs/ERRATA.md`](docs/ERRATA.md) §A8.
+
+- **All three phases ran fewer steps than Table IV states.** The
+  committed checkpoint lists in `docs/MODELS_SUMMARY.md` give **417 / 135
+  / 675** against the table's 500 / 500 / 2,000. Phase 1 is confirmed by
+  two independent sources — the recovered log and the checkpoint agree.
+  [`docs/ERRATA.md`](docs/ERRATA.md) §A9.
+
+- **Table IV's Phase-1 row is wrong in four places**, and the log that
+  proves it was already committed. Recovered from
+  `report/antigravity_experiments/`: **410 steps** not 500; **1.31 is the
+  validation loss**, not the training loss (train ends at 1.34); **0.985
+  epochs** not 0.8; **9.7 minutes** not 3h05. §C18.
+
 - **The benchmarked "Llama-3.2-11B" was almost certainly a 3B model.**
   `bhasha/llm/run_benchmark_suite.py` maps that row to the Ollama tag
   `llama3.2:latest`, which resolves to `llama3.2:3b` — 3.21B parameters,
   Q4_K_M, a 2.0 GB download. The 11B model is Llama-3.2-11B-**Vision** and
   is served under a different tag. This affects the paper's central
   conclusion and every figure attributed to that model.
-  [`docs/ERRATA.md`](docs/ERRATA.md) §A00.
+  [`docs/ERRATA.md`](docs/ERRATA.md) §A7.
 
 - **The nine-model benchmark ran on Ollama, not the paper's stack.** GGUF
   at Q4_K_M via llama.cpp, not 4-bit NF4 via BitsAndBytes; temperature 0.3,
@@ -58,6 +87,14 @@ substantive ones:
   and their tokenizer is unrecorded. Bangla ROUGE is unusually easy to get
   silently wrong; see `eval/text_metrics.py`.
 
+- **The self-collected OCR data cannot be loaded on another machine.**
+  All 3,402 records in `training/vlm_ocr/data_desktop/` store absolute
+  paths from one laptop. It is also 1,701 **lines** from three collection
+  folders split 90/5/5, not 1,500 **pages** split 1,050/150/300 as
+  Sec. IV-C states, and no record carries a `writer_id`. Run
+  `python scripts/relocate_dataset_paths.py` to see it, `--write` to fix
+  it. [`docs/ERRATA.md`](docs/ERRATA.md) §C21, §C22.
+
 - **The 6.6M-token corpus is not in this repository.** The committed
   `text dataset.rar` is 58 KB compressed and holds ~110 numbered text
   files with no author metadata, so neither Table IV's corpus size nor
@@ -71,7 +108,7 @@ substantive ones:
   loader, the OCR evaluation script and the production model-path resolver
   all point at `data/processed/banglawriting`. BanglaWriting is not cited
   anywhere in the paper. This was the repository's highest-priority open
-  item and is now resolved: [`docs/ERRATA.md`](docs/ERRATA.md) §A0.
+  item and is now resolved: [`docs/ERRATA.md`](docs/ERRATA.md) §A10.
 
 Full list with reasoning: [`docs/ERRATA.md`](docs/ERRATA.md).
 
@@ -103,7 +140,14 @@ bash scripts/capture_environment.sh    # writes docs/environment_capture.txt
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt          # direct dependencies
 # pip install -r requirements-full.lock  # exact frozen environment
+# pip install -e .                        # or install the package
+# pip install -e '.[paddle,legacy-api]'   # plus the optional extras
 ```
+
+Optional extras, none of which the paper's pipeline needs: `paddle` (the
+legacy PaddleOCR pipeline and the `--detector paddle` stage), `legacy-api`
+(the Gemini client, for `/api/chat` only), `archive` (a RAR reader for
+`scripts/audit_text_corpus.py`), `dev` (pytest).
 
 `requirements.txt` lists what the pipeline imports. `requirements-full.lock`
 is the full `pip freeze` from the development machine, preserved for exact
@@ -128,10 +172,11 @@ models/
 Only the base model and the currently needed adapter are resident at
 runtime, so the 6.9 GB of base weights is not duplicated per task.
 
-> The Phase-3 adapter directory is currently named `banglawriting_adapter`,
-> which does not match the training data described in the paper. This is
-> unresolved — see `docs/ERRATA.md` §C1. Do not rely on the OCR
-> training-data description until it is.
+> The Phase-3 adapter directory is named `banglawriting_adapter`, and the
+> name is accurate: it was trained on BanglaWriting, not on the Ekush +
+> self-collected composition Section IV-C describes. **Resolved** —
+> `docs/ERRATA.md` §A10. Do not describe the OCR training data from the
+> manuscript without reading that entry.
 
 ## Running it
 
@@ -247,6 +292,8 @@ they differ.
 | Sec. III-E — blind rating sheets | `python eval/make_rating_sheets.py --pred benchmarks/raw/*.jsonl --seed 42` | `human_eval/{rating_sheet.csv,rating_sheet.md,blinding_map.json}` |
 | Sec. III-F — local footprint | `bash scripts/capture_footprint.sh` | `docs/footprint.txt` |
 | Sec. IV-B — tokeniser sanity checks | `python eval/tokenizer_sanity.py --models Qwen/Qwen2.5-1.5B-Instruct facebook/xglm-1.7b` | `eval/tokenizer_sanity.json` |
+| Sec. IV-B — make the OCR splits portable | `python scripts/relocate_dataset_paths.py --write` | `training/vlm_ocr/data_portable/` |
+| Table IV, Table VII — recover committed evidence | `python scripts/recover_committed_evidence.py --write` | `logs/phase1_summary.json`, `eval/ocr_predictions_paligemma.jsonl` |
 | Tables V, VI — recover the committed generations | `python scripts/convert_llm_outputs.py` | `benchmarks/raw/*.jsonl` from `llm outputs/*.md` |
 | Sec. IV-B — audit the corpus archive | `python scripts/audit_text_corpus.py --tokenizer Qwen/Qwen2.5-1.5B-Instruct` | `data/text_corpus_audit.json`, `data/text_raw.sha256` |
 | Sec. IV-B — corpus preprocessing and splits | `python -m bhasha.data.text_corpus --input data/raw/nazrul data/raw/tagore --out-dir data/splits --tokenizer Qwen/Qwen2.5-1.5B-Instruct` | `data/splits/{train,val,test}.txt`, `split_manifest.json` |

@@ -38,21 +38,24 @@ it is not maintained.
 | Claim | Paper | Evidence file | Command | Status |
 | --- | --- | --- | --- | --- |
 | Corpus 6.6M tokens, 80/10/10 by document | Sec. IV-B | `data/splits/{train,val,test}.txt` + `split_manifest.json` | `python -m bhasha.data.text_corpus --input <raw> --out-dir data/splits --tokenizer Qwen/Qwen2.5-1.5B-Instruct` | `MISSING` (split script now implemented) |
-| 1,500 self-collected pages, 3 writers | Sec. IV-B | `DATA_CARD.md` + `data/handwriting/manifest.csv` | manual | `MISSING` |
+| 1,500 self-collected pages, 3 writers | Sec. IV-B | `training/vlm_ocr/data_desktop/` | `python scripts/relocate_dataset_paths.py` | `CORRECTED` — **1,701 LINES in 3 collection folders, split 90/5/5, no writer_id** (ERRATA C22) |
+| Self-collected data is loadable | Sec. VII (release promise) | `training/vlm_ocr/data_portable/` | `python scripts/relocate_dataset_paths.py --write` | `CORRECTED` — all 3,402 records held absolute paths from one laptop (ERRATA C21) |
 | Per-writer identifiers | Sec. VII | `data/handwriting/manifest.csv` → `writer_id` | `python -m bhasha.data.manifest --template ...` then fill; `--validate` audits writer disjointness | `MISSING` (schema + validator now implemented) |
 | Text corpus provenance and licences | Refs [21]–[27] | `DATA_CARD.md` provenance table | manual | `MISSING` |
 | Corpus archive contents and size | Sec. IV-B, Table IV | `data/text_corpus_audit.json`, `data/text_raw.sha256` | `python scripts/audit_text_corpus.py --tokenizer Qwen/Qwen2.5-1.5B-Instruct` | `CORRECTED` — the committed archive is 58 KB against a claimed 6.6M tokens (ERRATA C8) |
 | Author-disjoint 80/10/10 split | Sec. IV-C | `data/splits/split_manifest.json` → `grouping` | `python -m bhasha.data.text_corpus --group-by author` | `CORRECTED` — the archive carries no author metadata, so the guarantee is unverifiable (ERRATA C8) |
-| OCR trained on Ekush + self-collected | Sec. IV-C | `bhasha/ocr/train.py`, `bhasha/eval/ocr_models.py`, `bhasha/scripts/model_paths.py` | loader read | `CORRECTED` — **trained on BanglaWriting; ERRATA A0** |
+| OCR trained on Ekush + self-collected | Sec. IV-C | `bhasha/ocr/train.py`, `bhasha/eval/ocr_models.py`, `bhasha/scripts/model_paths.py` | loader read | `CORRECTED` — **trained on BanglaWriting; ERRATA A10** |
 
 ## Training
 
 | Claim | Paper | Evidence file | Command | Status |
 | --- | --- | --- | --- | --- |
-| Phase 1: 500 steps, loss 1.31 | Table IV | `logs/phase1_summary.json` | `python -m bhasha.llm.train --config configs/phase1_bangla_pt.yaml` | `CHECK` (command now works) |
-| Phase 1: 0.8 epochs | Table IV, Sec. IV-C | same → `epochs_covered` | computed, not typed | `CORRECTED` (ERRATA B2) |
-| Phase 2: 500 steps, val loss 0.018 | Table IV | `logs/phase2_summary.json` | `python -m bhasha.llm.train_instruct --config configs/phase2_grading_sft.yaml` | `CHECK` (command now works) |
-| Phase 3: 2000 steps, val loss 0.31 | Table IV | `logs/phase3_summary.json` | `python -m bhasha.ocr.train --config configs/phase3_ocr_sft.yaml` | `CHECK` (command now works) |
+| Phase 1: 500 steps, loss 1.31 | Table IV | `logs/phase1_summary.json` | `python scripts/recover_committed_evidence.py --write` | `CORRECTED` — **410 steps; 1.31 is the EVAL loss, not train; 0.985 epochs; 9.7 min not 3h05** (ERRATA C18) |
+| Phase 1: 0.8 epochs | Table IV, Sec. IV-C | same → `epochs_covered` | recovered from the log | `CORRECTED` — **0.985** (ERRATA C18, supersedes B2) |
+| Phase 2: 500 steps, val loss 0.018 | Table IV | `logs/phase2_summary.json` | `python -m bhasha.llm.train_instruct --config configs/phase2_grading_sft.yaml` | `CORRECTED` — **135 steps not 500 (A9); trained on Kaggle pairs, not grading data, one task with a constant answer (A8)** |
+| Grading set: 400/100/50 self-generated pairs | Sec. IV-C, ref [23] | `data/grading/{train,val,test}.jsonl` | — | `MISSING` — no grading pairs exist anywhere in the repository (ERRATA A8) |
+| Phase 3: 2000 steps, val loss 0.31 | Table IV | `logs/phase3_summary.json` | `python -m bhasha.ocr.train --config configs/phase3_ocr_sft.yaml` | `CORRECTED` — **last checkpoint is 675, not 2,000** (ERRATA A9) |
+| Step counts 500 / 500 / 2,000 | Table IV | `docs/MODELS_SUMMARY.md` checkpoint lists | `python scripts/recover_committed_evidence.py` | `CORRECTED` — **417 / 135 / 675**; Phase 1 confirmed by two independent sources (ERRATA A9) |
 | Single seed, no variance | Sec. IV-C | `seed` field in each summary | — | `TRACED` (disclosed in paper) |
 
 ## Model selection and benchmark
@@ -83,9 +86,9 @@ it is not maintained.
 
 | Claim | Paper | Evidence file | Command | Status |
 | --- | --- | --- | --- | --- |
-| CER 28% → 12% | Abstract, Table VII | `eval/ocr_cer.json` | `python test_models.py ocr --manifest ... --split test --out eval/ocr_predictions.jsonl` then `python eval/ocr_cer.py --pred eval/ocr_predictions.jsonl` | `MISSING` (inference CLI now implemented) |
+| CER 28% → 12% | Abstract, Table VII | `eval/ocr_cer.json` | `python scripts/recover_committed_evidence.py` | `CORRECTED` — **no artifact supports it; the repo's own reports say fine-tuning raised CER 18.1% → 92.7%** (ERRATA A6) |
 | Writer-disjoint CER | Sec. VI-D | same, `by_writer_id` | add `--manifest ... --group-by writer_id` | `MISSING` |
-| Per-grapheme accuracy 94/91/85/79% | Sec. V-B | same, `by_grapheme_category` | same command | `CORRECTED` (ERRATA B7) |
+| Per-grapheme accuracy 94/91/85/79% | Sec. V-B | `eval/ocr_cer_paligemma.json` | `python scripts/recover_committed_evidence.py --write` | `CORRECTED` — measured 55/51/59/54% on the only committed predictions, in a different rank order (ERRATA A6, B7) |
 | Confidence 0.68 → 0.82 | Table VII | `eval/confidence.json` | `python eval/confidence.py --pred <preds with token_logprobs>` | `CORRECTED` — definition `exp(mean log p)` now in code (ERRATA B11) |
 | OCR correction 88% / 85% / 35% | Sec. V-B | `eval/ocr_correction.json` | `python eval/ocr_correction.py --pred benchmarks/raw/ocr_correction.jsonl` | `CORRECTED` — **the prompt leaks its own answer; these rates measure copying** (ERRATA C17) |
 | Maung et al. CER 10.37% | Table VII | their 2.47% final figure must appear too | — | `CORRECTED` (ERRATA A3) |
@@ -94,11 +97,11 @@ it is not maintained.
 
 | Claim | Paper | Evidence file | Command | Status |
 | --- | --- | --- | --- | --- |
-| Model identity: "Llama-3.2-11B" | Abstract, Tbl I/V/VI/VII | `bhasha/llm/run_benchmark_suite.py` → `MODELS` | `ollama list` on the benchmark machine | `CORRECTED` — **`llama3.2:latest` is the 3B model** (ERRATA A00) |
+| Model identity: "Llama-3.2-11B" | Abstract, Tbl I/V/VI/VII | `bhasha/llm/run_benchmark_suite.py` → `MODELS` | `ollama list` on the benchmark machine | `CORRECTED` — **`llama3.2:latest` is the 3B model** (ERRATA A7) |
 | Serving stack | Sec. IV-A | `benchmarks/model_registry.json` → `benchmark_execution` | read the runner | `CORRECTED` — Ollama/llama.cpp, not the Transformers stack (ERRATA C11) |
 | Fixed decoding across nine models | Sec. IV-C | same | same | `CORRECTED` — temperature 0.3, not 0.7 (ERRATA C13) |
 | Nine models benchmarked | Table I | same | same | `CORRECTED` — Llama-3-8B never run; `bn_rag_8B` run instead (ERRATA C14) |
-| Training losses 1.31 / 0.018 / 0.31 | Table IV | `logs/phase*_summary.json` | run a phase | `MISSING` — the only committed log is of a crashed run; `report/training_metrics.csv` matches no phase (ERRATA C16) |
+| Training losses 1.31 / 0.018 / 0.31 | Table IV | `logs/phase*_summary.json` | `python scripts/recover_committed_evidence.py --write` | Phase 1 `CORRECTED` (C18); Phases 2 and 3 `MISSING` — the only other log is of a crashed run (C16) |
 
 ## Architecture and pipeline
 
@@ -154,20 +157,31 @@ repository. What is missing is data and compute, not code.
 | `scripts/capture_footprint.sh` | added — writes `docs/footprint.txt` |
 | `scripts/audit_text_corpus.py` | added — extracts and audits `text dataset.rar` against Table IV |
 | `scripts/convert_llm_outputs.py` | added — recovers `llm outputs/*.md` into `benchmarks/raw/*.jsonl` |
+| `scripts/recover_committed_evidence.py` | added — recovers the Phase-1 history and the committed OCR predictions |
+| `scripts/relocate_dataset_paths.py` | added — makes the committed OCR splits loadable off the author's machine |
 | `bhasha/eval/ekush_mapping.py` | added — restores the import breaking two eval modules |
 | `bhasha/app/routes_ui.py`, `static/index.html` | added — the opt-in Sec. III-F frontend |
+| `setup.py`, `MANIFEST.in` | corrected — PyYAML/trl were missing, configs and the frontend never shipped |
+| `tests/conftest.py`, `tests/README.md` | added — `pytest` errored during collection before this |
 | `eval/{compute_bpc,ocr_cer,script_integrity,text_metrics,aggregate_human_eval}.py` | already present |
 
 ## Before tagging `v1.0-paper`
 
 - [ ] No row still reads `CHECK` — each has been resolved to `TRACED` or `MISSING`
-- [x] ERRATA C1 resolved: the OCR training dataset is confirmed by reading the loader — **BanglaWriting, not Ekush; see ERRATA A0**
+- [x] ERRATA C1 resolved: the OCR training dataset is confirmed by reading the loader — **BanglaWriting, not Ekush; see ERRATA A10**
 - [ ] BanglaWriting cited in the reference list and completed in `DATA_CARD.md`
 - [ ] `benchmarks/model_registry.json` `FILL` fields completed (ERRATA B10)
 - [ ] `benchmarks/items/*.jsonl` committed so N is readable for Tables V and VI
 - [ ] `docs/environment_capture.txt` committed
 - [ ] `DATA_CARD.md` committed with per-writer identifiers
-- [ ] Corpus archive resolved: either the full 6.6M-token corpus is committed, or Table IV's figure is revised (ERRATA C8)
+- [ ] Corpus archive resolved: either the full 6.6M-token corpus is committed, or Table IV's figure is revised (ERRATA C8, C18 — two independent lines of evidence say ~0.85M)
+- [ ] Table VII resolved: predictions produced, or the 28% → 12% claim withdrawn (ERRATA A6)
+- [ ] Phase 2 resolved: grading pairs produced, or Sec. IV-C rewritten to describe the Kaggle instruction set (ERRATA A8)
+- [ ] Table IV step counts corrected from `trainer_state.json` in each final adapter, or the runs re-run (ERRATA A9)
+- [ ] Dataset paths made portable before release; Sec. VII promises this data (ERRATA C21)
+- [ ] Sec. IV-C's 1,050/150/300 of 1,500 pages reconciled with the committed 1,529/84/88 of 1,701 lines (ERRATA C22)
+- [ ] The three contradictory OCR reports in `report/` reconciled or annotated (ERRATA A6)
+- [ ] `llama3.2:latest` confirmed with `ollama list`; model relabelled or re-run (ERRATA A7)
 - [ ] Author metadata added to the text corpus, or the Sec. IV-C author-disjointness claim withdrawn (ERRATA C8)
 - [ ] `LICENSE` and `CITATION.cff` committed
 - [ ] Repository description and topics set on GitHub

@@ -18,6 +18,32 @@ Computer Engineering, North South University.
 
 ---
 
+## Start here
+
+Fifty entries follow. These five are the ones that change what the paper
+can claim, in descending order of severity. Everything else is a
+qualifier, a transcription error, or a repository defect.
+
+| # | What | Bears on |
+| --- | --- | --- |
+| [**A6**](#a6-the-repositorys-own-ocr-reports-contradict-table-vii-and-disagree-with-each-other) | Table VII's 28% → 12% has no artifact, and two committed reports reverse its sign | Abstract, Table VII, Sec. V-B, Sec. VII |
+| [**A7**](#a7-the-benchmarked-llama-32-11b-was-almost-certainly-a-3b-model) | The benchmarked "Llama-3.2-11B" was almost certainly Llama-3.2-**3B** | Abstract, Sec. I, III-B, Tables I/II/V/VI |
+| [**A8**](#a8-phase-2-was-not-trained-on-grading-data) | Phase 2 trained on Kaggle spelling/morphology pairs, not grading data | Sec. IV-C, Table IV, ref [23] |
+| [**A9**](#a9-all-three-phases-ran-fewer-steps-than-table-iv-states) | All three phases ran short: 417 / 135 / 675 against 500 / 500 / 2,000 | Table IV, Sec. IV-C |
+| [**A10**](#a10-the-ocr-training-data-in-section-iv-c-is-wrong) | Phase 3 trained on BanglaWriting, which the paper never cites | Sec. IV-C, Table IV |
+
+Two of the three training phases (A8, A10) are described in Section IV-C
+with data that is not what the code reads. Verifying A7 takes one command
+(`ollama list`) and A9 takes one file (`trainer_state.json` in each final
+adapter).
+
+Three entries record errors **in this document**, found by auditing it
+against the repository: [C7](#c7-docserratamd-itself-contained-an-inaccurate-row)
+and [C21](#c21-the-committed-ocr-data-cannot-be-loaded-on-any-other-machine)
+each describe a group C row that claimed a fix which had not been made.
+
+---
+
 ## How to read this
 
 Items are grouped by what can still be done about them.
@@ -28,66 +54,170 @@ Items are grouped by what can still be done about them.
 | **B** | The manuscript text stands as published. The correction lives here. |
 | **C** | Repository-side defects. Fixed in this release; recorded for the reader who saw the earlier state. |
 
+<!-- retired-ids-note:start -->
+**On numbering.** A1–A5 are the original camera-ready items. A6–A10 were
+added later and are the more severe group; they were briefly numbered
+`A0`, `A00`, `A01`, `A02`, `A03`, which collided with A1–A3 and is why the
+scheme now runs 1–10 with no leading zeros. If you have a reference to an
+`A0x` identifier, the mapping is A01→A6, A00→A7, A02→A8, A03→A9, A0→A10.
+<!-- retired-ids-note:end -->
+
 ---
 
-## A0. The OCR training data in Section IV-C is wrong
+## Group A — correct in camera-ready if the window is open
 
-**This was C1, the document's highest-priority open item. It is now
-resolved, and the answer is the one that requires a correction to the
-paper rather than a rename in the repository.**
+### A1. Software versions in Section IV-A are wrong
 
-Section IV-C states that OCR fine-tuning "applied the same QLoRA
-configuration to the vision encoder's attention layers using the Ekush
-dataset [28] plus the manually collected pages." Table IV gives the
-Phase-3 training split as 7,050 images, footnoted as "6,000 Ekush images
-plus 1,050 self-collected pages."
+Section IV-A reports PyTorch 2.1.2, Transformers 4.37.2, BitsAndBytes
+0.43.0 and PEFT 0.7.1. The environment this work actually ran in, as
+pinned in the repository, is:
 
-The committed adapter was trained on **BanglaWriting**, a separate public
-handwritten Bangla dataset that the manuscript does not cite anywhere.
-
-**Evidence, all of it in the repository:**
-
-| File | Line | What it shows |
+| Component | Section IV-A | Actual |
 | --- | --- | --- |
-| `bhasha/ocr/train.py` | `DEFAULT_DATA_DIR` | reads `data/processed/banglawriting` |
-| `bhasha/ocr/train.py` | `DEFAULT_OUTPUT_DIR` | writes `models/ocr_adapters/banglawriting_adapter` |
-| `bhasha/eval/ocr_models.py` | `adapter_path`, `test_data_path` | scores `banglawriting_adapter` against `data/processed/banglawriting/test.jsonl` |
-| `bhasha/scripts/model_paths.py` | `"ocr"` | resolves the production OCR adapter to `banglawriting_adapter` |
-| `bhasha/scripts/train_ocr_improved.py` | `data_sources` | combines Ekush **and** BanglaWriting, writing a separate `combined_ocr_adapter` |
-| `bhasha/scripts/debug_dataset_shapes.py` | `datasets` | lists Ekush and BanglaWriting as distinct prepared directories |
+| PyTorch | 2.1.2 | 2.10.0 |
+| Transformers | 4.37.2 | 4.57.6 |
+| BitsAndBytes | 0.43.0 | 0.49.1 |
+| PEFT | 0.7.1 | 0.18.1 |
+| CUDA runtime | not stated | 12.8.x |
 
-The last two are what settle it. The repository can tell Ekush from
-BanglaWriting — they are separate prepared directories and there is a
-separate script that combines them into a differently-named adapter. The
-adapter the evaluation code and the production path both point at is the
-BanglaWriting one.
+This is not a cosmetic mismatch. The RTX 5070 Ti is a Blackwell card
+(compute capability sm_120). PyTorch 2.1.2 predates Blackwell support and
+cannot target that architecture; Transformers 4.37.2 predates the model
+classes required to load Qwen-2.5, Llama-3.2-Vision or a Qwen3-VL-style
+OCR model. The versions named in the manuscript describe an environment in
+which this project could not have run. The versions in the right-hand
+column describe one in which it could.
 
-**Consequences.**
+Correct figures are captured mechanically by
+`scripts/capture_environment.sh` into `docs/environment_capture.txt`. That
+file, not a hand-typed list, is the citable record.
 
-1. Section IV-C's description of the Phase-3 training data does not
-   describe the run behind the headline 28% → 12% CER result.
-2. BanglaWriting must be cited. It is absent from the reference list.
-3. Table IV's "6,000 Ekush images plus 1,050 self-collected pages"
-   footnote is unsupported by any committed artifact.
-4. Every downstream statement that depends on the training composition —
-   including the Ekush domain-gap discussion in B12 below — needs
-   re-examination against BanglaWriting's actual composition.
+### A2. Reference [7] has a transposed arXiv identifier
 
-**What was *not* changed.** The default paths in `bhasha/ocr/train.py` are
-left pointing at BanglaWriting, so the committed adapter stays
-reproducible. `configs/phase3_ocr_sft.yaml` describes the composition the
-paper claims; running with `--config` trains that instead. Both are now
-recorded in `logs/phase3_summary.json` on every run, via a
-`training_data_note` field, so the provenance travels with the artifact.
+Reference [7] cites arXiv:2010.01192 for *An Image Is Worth 16x16 Words*.
+The correct identifier is **arXiv:2010.11929**. The digits are transposed
+and the cited identifier resolves to an unrelated record.
 
-**Recommended action.** If the camera-ready window is open, correct
-Section IV-C and Table IV and add the BanglaWriting citation. If it has
-closed, this entry is the correction. Do not describe the OCR training
-data from the manuscript without pointing at this entry.
+Worth fixing above its apparent size: a transposed identifier is the
+standard signature of a reference that was never opened, and it is
+routinely checked.
+
+### A3. Table VII reports the less favourable of two available baselines
+
+Table VII lists Maung et al.'s hybrid pipeline at 10.37% CER alongside
+BhashaLLM at 12%. 10.37% is their **pre-correction** figure. Their final
+reported system, after the Word2Vec spelling-correction stage, reaches
+**2.47%** — a number Section II-A of our own paper already cites. The
+manuscript therefore contains both figures while the comparison table
+shows only the one favourable to us.
+
+The table should carry both, with a footnote distinguishing them. The
+comparison against Google Cloud Vision at 13.89% is unaffected and remains
+the stronger and fairer point.
+
+### A4. Abstract overstates the OCR training set
+
+The abstract describes the OCR model as fine-tuned "on a self-collected
+1,500-image dataset." Table IV gives the training split as 7,050 images:
+6,000 sampled from Ekush plus 1,050 self-collected pages. The
+self-collected material is roughly 15% of the training data, not the
+whole of it. The 1,500-image figure is the size of the full self-collected
+collection, of which 300 images form the held-out test split.
+
+### A5. Abstract omits the writer-overlap qualifier
+
+Section VI-D states plainly that the self-collected split is not
+writer-disjoint and that 12% CER "is probably optimistic for a writer the
+model has never seen." The abstract reports 12% next to Google Cloud
+Vision's 13.89% with no such qualifier. A reader of the abstract alone
+takes away a controlled comparison that Section VI-D withdraws.
 
 ---
 
-## A00. The benchmarked "Llama-3.2-11B" was almost certainly a 3B model
+---
+
+## A6. The repository's own OCR reports contradict Table VII, and disagree with each other
+
+Table VII reports that QLoRA fine-tuning improved handwritten OCR:
+
+| Metric | Before | After |
+| --- | --- | --- |
+| Character accuracy | 72% | 88% |
+| Character error rate | 28% | 12% |
+
+The repository contains **three** OCR evaluations. None of them produces
+those numbers, and one reverses the sign of the result.
+
+**1. `report/ocr_benchmark_report.md`** — baseline vs fine-tuned
+`swapnillo/Bangla-OCR-SFT`, the paper's own model, on Ekush:
+
+| Model | Accuracy | CER | WER |
+| --- | --- | --- | --- |
+| Baseline | 66.00% | **18.10%** | 34.00% |
+| Fine-tuned | 5.00% | **92.72%** | 98.00% |
+
+The report's own summary line reads `+-61.00%` improvement. **Fine-tuning
+made the model 61 accuracy points worse and raised CER from 18% to 93%.**
+Table VII states the opposite direction and a different magnitude. That
+report also gives the split as 900 training / 100 test images, where
+Table IV gives 7,050 / 300.
+
+**2. `report/COMPREHENSIVE_OCR_EVALUATION.md`** — three approaches on 50
+Ekush images:
+
+| Model | Accuracy |
+| --- | --- |
+| Baseline Swapnillo | **0.00%** |
+| Fine-tuned Swapnillo | **0.00%** |
+| PaddleOCR | not available |
+
+Its sample predictions show the model answering the digit `৩` with `।`,
+`'` and `T`. This is a total failure, not an 88% system.
+
+**3. `training/vlm_ocr/outputs/paligemma2_3b_448_desktop_lines_lora/desktop_lines_test_predictions.jsonl`**
+— 88 line predictions with references, the only committed OCR predictions
+in the repository. Scored with this repository's own `eval/ocr_cer.py`:
+
+| Metric | Value |
+| --- | --- |
+| CER | **52.69%** |
+| Character accuracy | **47.31%** |
+| Reference characters | 2,866 over 88 lines |
+
+Per grapheme category: consonants 50.7%, vowel diacritics 58.6%,
+consonant diacritics 53.6%, independent vowels 55.1%. Section V-B reports
+91% / 85% / 79% / 94%, and in a different rank order — Section V-B has
+consonants above vowel diacritics, and the measured data has the reverse.
+
+**Summary of the four numbers.**
+
+| Source | CER | Model |
+| --- | --- | --- |
+| Paper Table VII, after fine-tuning | 12% | Bangla-OCR-SFT + adapter |
+| `report/ocr_benchmark_report.md`, baseline | 18.1% | Bangla-OCR-SFT |
+| `report/ocr_benchmark_report.md`, fine-tuned | 92.7% | Bangla-OCR-SFT + adapter |
+| PaliGemma predictions, measured here | 52.7% | PaliGemma-2 3B (not in the paper) |
+
+**Position taken here.** The 28% → 12% improvement in Table VII, the
+abstract, and Section VII's conclusion has **no supporting artifact in
+this repository**, and the two committed evaluations of the paper's own
+model both report that fine-tuning made it worse. This is the single
+largest gap between the manuscript and its artifact, and unlike A7 it
+cannot be resolved by relabelling.
+
+**What to do.** Produce the predictions behind Table VII —
+`python -m bhasha.ocr.hybrid_pipeline --manifest ... --split test --out
+eval/ocr_predictions.jsonl`, then `python eval/ocr_cer.py`. If they cannot
+be produced, Table VII must be withdrawn rather than qualified. If the two
+existing reports are from a broken run, say so and delete or annotate
+them; leaving three mutually contradictory OCR evaluations in the
+repository is worse than any one of them being wrong.
+`scripts/recover_committed_evidence.py` prints all four figures side by
+side.
+
+---
+
+## A7. The benchmarked "Llama-3.2-11B" was almost certainly a 3B model
 
 **This is the most serious item in this document. It bears on the paper's
 central conclusion.**
@@ -161,73 +291,195 @@ the other.
 
 ---
 
-## Group A — correct in camera-ready if the window is open
+## A8. Phase 2 was not trained on grading data
 
-### A1. Software versions in Section IV-A are wrong
+Section IV-C describes Phase 2:
 
-Section IV-A reports PyTorch 2.1.2, Transformers 4.37.2, BitsAndBytes
-0.43.0 and PEFT 0.7.1. The environment this work actually ran in, as
-pinned in the repository, is:
+> Instruction tuning for grading used the same base model with the Bangla
+> adapter loaded. It trained on 400 synthetic and human-written
+> instruction-grading pairs, with 100 pairs held out for validation, and
+> converged to a validation loss of 0.018.
 
-| Component | Section IV-A | Actual |
+Reference [23] describes the source: *"Synthetic grading dataset
+(self-generated), 200 question-answer pairs generated from Bangla
+literature for grading logic training."*
+
+**No such dataset exists in this repository, and the Phase-2 trainer reads
+something else entirely.** `bhasha/llm/train_instruct.py` loads
+`data/processed/kaggle_instruct.jsonl`, which is built by
+`bhasha/llm/prepare_kaggle_data.py` from four Kaggle resources:
+
+| Source | Ref | Task the script generates | Volume |
+| --- | --- | --- | --- |
+| Spelling checker (`right_file`/`wrong_file`) | [24] | "correct this misspelled word" | up to **20,000** pairs |
+| Bangla morphological dataset | [26] | "is this sentence literal or metaphorical?" | all rows |
+| 80k word frequency list | [25] | "is this a correct Bangla word?" | sampled |
+| OSCAR Bengali sentences | [27] | "correct any language errors in this sentence" | sampled |
+
+Four separate problems.
+
+**1. None of these tasks is grading.** Spelling correction,
+literal-versus-metaphorical classification, vocabulary lookup and
+proofreading are four language tasks. Section III-B's requirement is to
+"grade short written answers with Bangla feedback," and Table IV calls the
+phase "Grading SFT". Nothing in the training data has the shape
+*(question, reference answer, student answer) → feedback*.
+
+**2. The volume is off by roughly two orders of magnitude.** The spelling
+section alone takes up to 20,000 pairs. Table IV states 400 train / 100
+validation / 50 held out.
+
+**3. References [24]–[27] change role.** Section IV-B introduces them as
+resources against which "tokenisation and morphology behaviour were
+sanity-checked". They are the Phase-2 *training set*. A sanity-check
+resource and a training set are different claims, and the second is the
+one the artifact supports.
+
+**4. One task trains a constant answer.** The OSCAR proofreading pairs are
+generated as:
+
+```python
+q = f"নিচের বাক্যটিতে কোনো ভাষার ভুল থাকলে সংশোধন করুন: '{s}'"
+a = f"বাক্যটি সঠিক আছে: '{s}'"
+```
+
+The question asks the model to correct any errors; the answer is always
+"the sentence is correct", for every sentence, because the sentences are
+drawn from a corpus and never corrupted. This teaches the model to answer
+"correct" regardless of input. It is also a plausible contributor to the
+0.018 validation loss in Table IV: a task whose answer is a fixed template
+around the echoed input is close to trivial, and a validation loss two
+orders of magnitude below the Phase-1 and Phase-3 losses is what that
+would look like.
+
+**This is the second training-data mismatch in the paper**, after A10
+(Phase 3 trained on BanglaWriting rather than Ekush + self-collected).
+Two of the three phases are described in Section IV-C with data that is
+not what the code reads.
+
+**Independent corroboration.** `.agent/workflows/train_evaluate_bangla_llm.md`,
+the project's own training runbook, opens with: "Run the training script to
+fine-tune the model using the prepared **`kaggle_instruct.jsonl`**
+instruction dataset." The repository's operating procedure names the same
+file the trainer reads. There is no step anywhere that produces or
+consumes grading pairs.
+
+**What to do.** Either produce the 500 grading pairs reference [23]
+describes and retrain, or rewrite Section IV-C and Table IV to describe
+the Kaggle-derived instruction set that was actually used — in which case
+[24]–[27] move from "sanity-checked against" to "trained on", and the
+0.018 loss needs re-examining against the constant-answer task.
+
+The path for the first option already exists:
+`configs/phase2_grading_sft.yaml` points at `data/grading/{train,val,test}.jsonl`
+with the 400/100/50 split, and `train_instruct.py` uses those files when
+they are present, falling back to the Kaggle file and printing a warning
+when they are not.
+
+---
+
+## A9. All three phases ran fewer steps than Table IV states
+
+Table IV's "Steps" column gives 500 / 500 / 2,000. The committed
+checkpoint directories say otherwise. `docs/MODELS_SUMMARY.md` records the
+saved checkpoint steps for each adapter:
+
+| Phase | Table IV | Checkpoints saved | Last step | Shortfall |
+| --- | --- | --- | --- | --- |
+| 1. Bangla PT | 500 | 10, 100, 200, 300, 400, **417** | 417 | 17% |
+| 2. Grading SFT | 500 | 20, 40, 60, 80, 100, 120, **135** | 135 | **73%** |
+| 3. OCR SFT | 2,000 | 50, 600, **675** | 675 | **66%** |
+
+**Phase 1 has two independent sources that agree.** The recovered training
+history (C18) ends at step 417, and the last saved checkpoint is 417. That
+agreement is what makes the other two rows credible: the same file records
+all three, and where it can be cross-checked it is correct.
+
+**Phase 2 is the largest discrepancy in the table.** 135 steps against a
+stated 500. The checkpoint cadence corroborates it — `train_instruct.py`
+sets `save_steps=20`, and the list is 20, 40, 60, 80, 100, 120 with 135 as
+the final save, exactly the pattern a run ending at 135 produces. Table IV
+also gives Phase 2 as 5 epochs; at effective batch 4, 135 steps is 540
+sequences, which is 5 epochs only if the training set is about 108
+examples — not the 400 the table states, and not the tens of thousands the
+Kaggle file actually contains (A8).
+
+**Phase 3 ran 675 steps, not 2,000.** Section IV-C presents the 2,000-step
+figure as one of two deliberate deviations from Table III — "2,000
+optimiser steps instead of 500, because the image set is an order of
+magnitude larger than the text sets". That reasoning is stated for a run
+that appears not to have happened at that length.
+
+**Why this matters beyond the numbers.** Section IV-C's step counts are
+presented as design decisions with justifications attached. If the runs
+stopped at 417, 135 and 675, then either the runs were interrupted and the
+table records intent rather than outcome, or the checkpoints are from
+different runs than the ones reported. Both are recoverable positions; the
+current one — a table of round numbers with no matching artifact — is not.
+
+`python scripts/recover_committed_evidence.py` prints this comparison.
+
+**What to do.** Read `trainer_state.json` inside each final adapter
+directory; it carries `global_step` and the full log history. Correct
+Table IV to the actual steps, or state that training was interrupted and
+report the step reached.
+
+---
+
+## A10. The OCR training data in Section IV-C is wrong
+
+**This was C1, the document's highest-priority open item. It is now
+resolved, and the answer is the one that requires a correction to the
+paper rather than a rename in the repository.**
+
+Section IV-C states that OCR fine-tuning "applied the same QLoRA
+configuration to the vision encoder's attention layers using the Ekush
+dataset [28] plus the manually collected pages." Table IV gives the
+Phase-3 training split as 7,050 images, footnoted as "6,000 Ekush images
+plus 1,050 self-collected pages."
+
+The committed adapter was trained on **BanglaWriting**, a separate public
+handwritten Bangla dataset that the manuscript does not cite anywhere.
+
+**Evidence, all of it in the repository:**
+
+| File | Line | What it shows |
 | --- | --- | --- |
-| PyTorch | 2.1.2 | 2.10.0 |
-| Transformers | 4.37.2 | 4.57.6 |
-| BitsAndBytes | 0.43.0 | 0.49.1 |
-| PEFT | 0.7.1 | 0.18.1 |
-| CUDA runtime | not stated | 12.8.x |
+| `bhasha/ocr/train.py` | `DEFAULT_DATA_DIR` | reads `data/processed/banglawriting` |
+| `bhasha/ocr/train.py` | `DEFAULT_OUTPUT_DIR` | writes `models/ocr_adapters/banglawriting_adapter` |
+| `bhasha/eval/ocr_models.py` | `adapter_path`, `test_data_path` | scores `banglawriting_adapter` against `data/processed/banglawriting/test.jsonl` |
+| `bhasha/scripts/model_paths.py` | `"ocr"` | resolves the production OCR adapter to `banglawriting_adapter` |
+| `bhasha/scripts/train_ocr_improved.py` | `data_sources` | combines Ekush **and** BanglaWriting, writing a separate `combined_ocr_adapter` |
+| `bhasha/scripts/debug_dataset_shapes.py` | `datasets` | lists Ekush and BanglaWriting as distinct prepared directories |
 
-This is not a cosmetic mismatch. The RTX 5070 Ti is a Blackwell card
-(compute capability sm_120). PyTorch 2.1.2 predates Blackwell support and
-cannot target that architecture; Transformers 4.37.2 predates the model
-classes required to load Qwen-2.5, Llama-3.2-Vision or a Qwen3-VL-style
-OCR model. The versions named in the manuscript describe an environment in
-which this project could not have run. The versions in the right-hand
-column describe one in which it could.
+The last two are what settle it. The repository can tell Ekush from
+BanglaWriting — they are separate prepared directories and there is a
+separate script that combines them into a differently-named adapter. The
+adapter the evaluation code and the production path both point at is the
+BanglaWriting one.
 
-Correct figures are captured mechanically by
-`scripts/capture_environment.sh` into `docs/environment_capture.txt`. That
-file, not a hand-typed list, is the citable record.
+**Consequences.**
 
-### A2. Reference [7] has a transposed arXiv identifier
+1. Section IV-C's description of the Phase-3 training data does not
+   describe the run behind the headline 28% → 12% CER result.
+2. BanglaWriting must be cited. It is absent from the reference list.
+3. Table IV's "6,000 Ekush images plus 1,050 self-collected pages"
+   footnote is unsupported by any committed artifact.
+4. Every downstream statement that depends on the training composition —
+   including the Ekush domain-gap discussion in B12 below — needs
+   re-examination against BanglaWriting's actual composition.
 
-Reference [7] cites arXiv:2010.01192 for *An Image Is Worth 16x16 Words*.
-The correct identifier is **arXiv:2010.11929**. The digits are transposed
-and the cited identifier resolves to an unrelated record.
+**What was *not* changed.** The default paths in `bhasha/ocr/train.py` are
+left pointing at BanglaWriting, so the committed adapter stays
+reproducible. `configs/phase3_ocr_sft.yaml` describes the composition the
+paper claims; running with `--config` trains that instead. Both are now
+recorded in `logs/phase3_summary.json` on every run, via a
+`training_data_note` field, so the provenance travels with the artifact.
 
-Worth fixing above its apparent size: a transposed identifier is the
-standard signature of a reference that was never opened, and it is
-routinely checked.
-
-### A3. Table VII reports the less favourable of two available baselines
-
-Table VII lists Maung et al.'s hybrid pipeline at 10.37% CER alongside
-BhashaLLM at 12%. 10.37% is their **pre-correction** figure. Their final
-reported system, after the Word2Vec spelling-correction stage, reaches
-**2.47%** — a number Section II-A of our own paper already cites. The
-manuscript therefore contains both figures while the comparison table
-shows only the one favourable to us.
-
-The table should carry both, with a footnote distinguishing them. The
-comparison against Google Cloud Vision at 13.89% is unaffected and remains
-the stronger and fairer point.
-
-### A4. Abstract overstates the OCR training set
-
-The abstract describes the OCR model as fine-tuned "on a self-collected
-1,500-image dataset." Table IV gives the training split as 7,050 images:
-6,000 sampled from Ekush plus 1,050 self-collected pages. The
-self-collected material is roughly 15% of the training data, not the
-whole of it. The 1,500-image figure is the size of the full self-collected
-collection, of which 300 images form the held-out test split.
-
-### A5. Abstract omits the writer-overlap qualifier
-
-Section VI-D states plainly that the self-collected split is not
-writer-disjoint and that 12% CER "is probably optimistic for a writer the
-model has never seen." The abstract reports 12% next to Google Cloud
-Vision's 13.89% with no such qualifier. A reader of the abstract alone
-takes away a controlled comparison that Section VI-D withdraws.
+**Recommended action.** If the camera-ready window is open, correct
+Section IV-C and Table IV and add the BanglaWriting citation. If it has
+closed, this entry is the correction. Do not describe the OCR training
+data from the manuscript without pointing at this entry.
 
 ---
 
@@ -435,7 +687,7 @@ gap, and it plausibly bears on the diacritic-placement errors reported in
 Section V-B, since diacritic position is exactly what isolated-character
 training under-specifies.
 
-**Amended in light of A0.** This entry was written against the training
+**Amended in light of A10.** This entry was written against the training
 composition the manuscript describes. Since the committed adapter was in
 fact trained on BanglaWriting, the 85% figure does not describe the run
 behind the reported CER, and the domain gap has to be recomputed against
@@ -465,7 +717,7 @@ differences between the phase losses as significant.
 | No release or tag | `main` moves; a reader six months on sees different code than the paper describes | Tag `v1.0-paper` + archival DOI (see README) |
 | Dependency file is a whole-machine freeze | 185 pinned packages including `chromadb`, `langchain`, `sentence-transformers` (a retrieval stack, next to Section III-D explaining that retrieval was rejected), `paddleocr`, `paddlepaddle`, `paddlepaddle-gpu`, `paddlex`, `pytesseract` (three OCR engines the methodology never mentions), plus `agentmail`, `posthog`, `kubernetes`, `modelscope` | Split: `requirements.txt` (direct dependencies) and `requirements-full.lock` (the freeze, preserved) |
 | Conflicting pins | `paddlepaddle==3.3.0` and `paddlepaddle-gpu==2.6.2` pinned simultaneously | Neither is a pipeline dependency; both confined to the lock file |
-| OCR adapter name contradicts the data description | `models/ocr_adapters/banglawriting_adapter` vs Section IV-C's Ekush + self-collected | **Resolved: the adapter was trained on BanglaWriting. The manuscript is wrong, not the directory name. See [A0](#a0-the-ocr-training-data-in-section-iv-c-is-wrong)** |
+| OCR adapter name contradicts the data description | `models/ocr_adapters/banglawriting_adapter` vs Section IV-C's Ekush + self-collected | **Resolved: the adapter was trained on BanglaWriting. The manuscript is wrong, not the directory name. See [A10](#a10-the-ocr-training-data-in-section-iv-c-is-wrong)** |
 | Documented scripts absent (2) | `test_models.py` named in Sec. III-F as the primary production interface; not in the repository | Present at the repository root. See C2 |
 | `bhasha.data` package absent | Imported by three modules; Phase-3 OCR training could not be imported at all | Added. See C2 |
 | Committed configs read by nothing | `configs/phase*.yaml` carried Table III and detailed reconciliation notes; no code loaded them | `bhasha/config.py` makes the YAML authoritative. See C2 |
@@ -477,14 +729,14 @@ differences between the phase losses as significant.
 
 ### C1. Which dataset trained the OCR adapter — RESOLVED
 
-**Resolved. Promoted to [A0](#a0-the-ocr-training-data-in-section-iv-c-is-wrong)
+**Resolved. Promoted to [A10](#a10-the-ocr-training-data-in-section-iv-c-is-wrong)
 at the top of this document.**
 
 The Phase-3 loader was opened and read. The second of the two outcomes
 this entry anticipated is the one that obtains: the committed adapter was
 trained on BanglaWriting, not on Ekush plus self-collected pages, so
 Section IV-C is wrong about the training data behind the headline OCR
-result. BanglaWriting must be cited. The evidence table is in A0.
+result. BanglaWriting must be cited. The evidence table is in A10.
 
 This entry is kept rather than deleted so that a reader who saw the
 earlier state can follow what changed and why.
@@ -699,6 +951,303 @@ So the set of nine models in the paper and the set of nine models that were
 run overlap in eight places and differ in one, and the differing one is a
 model the methodology section rules out.
 
+### C26. `pip install .` produced a package that could not run
+
+`setup.py` and `requirements.txt` disagreed in both directions, and the
+gaps were load-bearing.
+
+**Missing from `install_requires`, needed at runtime:**
+
+| Package | What breaks without it |
+| --- | --- |
+| `PyYAML` | `bhasha/config.py` imports `yaml` to read `configs/phase*.yaml`. Without it, **the entire Table III mechanism fails at import** and `python -m bhasha.llm.train --config ...` cannot start. |
+| `trl` | `bhasha/llm/train_instruct.py` uses `SFTTrainer`. Phase 2 cannot run. |
+| `python-multipart` | FastAPI raises on any `UploadFile` route, so `/api/v1/ocr` and `/api/analyze` both 500. |
+| `sacrebleu` | Sec. V-A's BLEU and chrF++ (B8). |
+| `accelerate`, `numpy`, `tokenizers`, `safetensors`, `sentencepiece`, `torchvision`, `tqdm`, `pydantic`, `huggingface_hub`, `jiwer` | assorted import failures |
+
+**Declared as mandatory but not pipeline dependencies:** `paddleocr` and
+`opencv-python` (the legacy pipeline — group C records that PaddleOCR is
+not in the methodology), and `google-generativeai` (only the two legacy
+endpoints that make cloud calls, C3). Every install pulled a second deep
+learning framework and a cloud SDK.
+
+**No `package_data` and no `MANIFEST.in`.** `find_packages()` carries
+importable modules only, so neither `configs/*.yaml` nor
+`bhasha/app/static/index.html` shipped. An installed copy could not read a
+phase config and served 404 at `/ui`.
+
+**Now.** `install_requires` mirrors `requirements.txt`; the optional
+groups (`paddle`, `legacy-api`, `archive`, `dev`) hold what was
+incorrectly mandatory, with the reason recorded against each;
+`package_data` and `MANIFEST.in` ship the configs, the frontend, the
+evaluation scripts, this errata and the traceability register. A
+`bhasha-models` console script exposes the Sec. III-F CLI after
+installation.
+
+### C27. The API documentation describes a cloud deployment
+
+`docs/API_DOCS.md` gave its base URL as
+`https://your-app-name.onrender.com` and documented only the three legacy
+endpoints. Two problems.
+
+**It assumes a cloud host.** Sections III-F and VI-F build an argument on
+the system being local and offline — it "lets students, teachers, and
+small developers work with Bangla-language AI tools without depending on
+cloud APIs or continuous network access". A deployment guide pointing at
+Render is the **third** artifact in the repository that assumes network
+access, after the Gemini endpoints (C3) and the retrieval stack (C5).
+
+**It documented none of the paper's endpoints.** `/api/v1/*` and `/ui`
+were absent, so the only documented surface was the one the paper does not
+describe.
+
+Corrected: both surfaces are documented, the local base URL is listed
+first, and a table at the top states which endpoints are in the paper and
+which are not.
+
+### C25. `pytest` failed before running anything
+
+`tests/` held seven files, all named `test_*.py`, and **none of them was a
+test**. Between them they contained zero `assert` statements. Two broke
+collection outright:
+
+| File | Problem |
+| --- | --- |
+| `test_ocr_lang.py` | `def test_lang(lang_code)` — pytest reads the positional argument as a fixture request and errors with `fixture 'lang_code' not found` |
+| `test_ocr_libs.py` | `def test_ocr_libraries(image_path)` — same |
+| `test_eval.py` | `from evaluate_ocr_models import compute_metrics`; no such module exists anywhere |
+| `test_models.py`, `test_image_processing.py` | `from model_paths import ...` rather than `from bhasha.scripts.model_paths import ...`, so they import only from inside `bhasha/scripts/` |
+| `test_write.py` | one line: `# test` |
+| `test_download_ocr.py` | downloads a dataset; no assertions |
+
+`test_eval.py`'s missing import is the **third** module in this category,
+after `bhasha.data` (C2) and `ekush_mapping` (C15).
+
+The seven are useful diagnostics — they check whether PaddleOCR accepts
+`lang='bn'`, whether EasyOCR and Tesseract are installed, whether the
+adapters load. They are simply not tests, and the `test_` prefix made
+pytest try to run them.
+
+**Now.** `tests/conftest.py` excludes them from collection, with the reason
+for each recorded in the file; `tests/README.md` documents what each one
+does and how to run it directly. **Nothing was deleted.** `pytest tests/`
+now runs the real suite — `test_paper_alignment.py`, 235 assertions across
+78 tests, organised by the paper claim each group checks.
+
+### C24. A planning document describes a framework the project never used
+
+`docs/unsloth_tuning_notes.md` is written in the first person future —
+"here is a comprehensive breakdown of why and how **we will use** Unsloth
+to fine-tune our Qwen model" — and sets out an implementation flow built on
+`unsloth.FastLanguageModel`.
+
+Unsloth appears nowhere else: not in `requirements.txt`, not in
+`requirements-full.lock`, not in any `.py` file. The training code uses
+plain PEFT and Transformers, which is what Section III-F describes.
+
+The document is a plan that was not followed, which is a normal thing for a
+research repository to contain. It is recorded here only because a reader
+who opens `docs/` finds a detailed argument for a framework the paper's
+methodology section does not mention, and has no way to tell that it was
+never adopted. A one-line header saying so would settle it.
+
+`report/IMPLEMENTATION_PLAN.md`, `report/TASK_CHECKLIST.md` and
+`report/WALKTHROUGH.md` are in the same category: planning and progress
+documents, not results. `WALKTHROUGH.md` records Phase 1 starting at loss
+1.54, where the recovered log (C18) shows 1.6046.
+
+### C21. The committed OCR data cannot be loaded on any other machine
+
+Every record in `training/vlm_ocr/data_desktop/` stores its image as an
+absolute path on one developer's laptop:
+
+```json
+{"image": "/home/benaaf/Desktop/datasets/image_787 to image_927/img799line8.png", "text": "..."}
+```
+
+**3,402 of 3,402 records**, plus 88 more in the committed PaliGemma
+predictions. On any other machine not one of them resolves. The
+self-collected handwriting data — the material Section IV-B presents as
+the project's own contribution, and which Section VII promises to release
+— is unusable by anyone who is not the author.
+
+**A third document makes the same claim.**
+`docs/PATH_MIGRATION_SUMMARY.md` opens: "All hardcoded paths from the old
+workspace directory have been updated to use relative paths based on the
+current project structure." It lists the files it fixed — and none of the
+dataset JSONLs is among them, because that migration was about a
+*different* old root (`/home/node/.openclaw/workspace/BhashaLLM`). The
+claim is true of what it covered and false as a general statement, and it
+is the sentence a reader reaches for when asking whether the data is
+portable.
+
+**This is the second inaccurate row in group C.** That table claims:
+
+| Defect | Previous state | Now |
+| --- | --- | --- |
+| Hardcoded absolute path | `/home/benaaf/Desktop/BhashaLLM_Export/...` in README | **This row was inaccurate: only the README instance was removed.** Absolute paths remain in nine Python files and all twelve dataset JSONLs, which makes the self-collected OCR data unloadable elsewhere. See C21; `scripts/relocate_dataset_paths.py` produces a portable copy |
+
+Only the README instance was removed. Absolute paths remain in nine Python
+files, two Markdown files, both `merged_ocr_llm_app` reports, and every one
+of the twelve dataset JSONLs. C7 recorded the same failure for the corpus
+archive; this is the same failure again, and the pattern is worth naming:
+**a row in an errata that describes an intended fix rather than a
+performed one is worse than no row.**
+
+**Now.** `scripts/relocate_dataset_paths.py --write` produces a portable
+copy under `training/vlm_ocr/data_portable/` with paths relative to a
+declared root, keeping a `.pathmap.json` sidecar so the original layout is
+not lost. `OCRDataset` and `bhasha/ocr/train.py` already accept
+`--image_root`. The originals are untouched: the absolute paths are the
+only surviving record of the collection folder structure, which is the
+closest thing the repository has to the per-session provenance Section IV-B
+describes.
+
+### C22. The self-collected dataset does not have the shape Section IV-C gives
+
+Measured with `scripts/relocate_dataset_paths.py`:
+
+| | Paper Sec. IV-C | Committed data (`merged_lines`) |
+| --- | --- | --- |
+| Train | 1,050 | **1,529** |
+| Val | 150 | **84** |
+| Test | 300 | **88** |
+| Total | 1,500 | **1,701** |
+| Proportions | 70 / 10 / 20 | **90 / 5 / 5** |
+| Unit | "pages" / "images" | **lines** |
+
+Four problems.
+
+**The unit is lines, not pages.** Filenames follow `img<N>line<M>.png`, and
+the four split directories are named `*_lines`. The abstract's
+"self-collected 1,500-image dataset", Section IV-B's "over 1,500
+handwritten pages" and Table IV's "self-collected pages" all appear to be
+counting line crops. 1,701 lines is the right order of magnitude for the
+stated 1,500, which suggests the figure is real and the noun is wrong. A
+page and a line are not interchangeable: 1,500 pages would be a
+substantial corpus, and 1,701 lines is a small one.
+
+**The split is 90/5/5, not 70/10/20.** A 5% test split of 88 lines is a
+thin basis for the CER in Table VII, and it is not the split the paper
+describes.
+
+**Three collection directories are not three writers.** The data comes
+from `image_787 to image_927` (2,650 records), `bnaf` (448) and
+`dataset10thMay` (304). Section IV-B says three writers. A directory is a
+collection session; nothing in the repository maps sessions to people, and
+one session can contain several writers or one writer several sessions.
+
+**No record carries a `writer_id`**, so the writer-disjoint evaluation
+Section VI-D discusses cannot be computed from this data at all — not
+"would show overlap", but cannot be computed. The manifest schema in
+`bhasha/data/manifest.py` is where that belongs.
+
+### C23. More uncited datasets, and a version the lockfile disagrees with
+
+`training/vlm_ocr/DATASET_REPORT.md` describes a dataset collection the
+paper never mentions:
+
+| Dataset | Rows in the train split |
+| --- | --- |
+| `bangla-handwritten-datatset` (word-level) | 493,022 |
+| `recognition_character_class` (BanglaLekha) | 149,340 |
+| `bangla-handwriting-dataset-for-pix2pix` | 16,152 |
+| `csai-hcr` (line/paragraph) | 895 |
+| `bengali-handwritten-text-with-bounding-boxes` | 231 |
+
+The manuscript cites only Ekush [28] and Bengali.AI graphemes [29].
+Counting BanglaWriting (A10) and PaliGemma's desktop lines (C19), the
+repository touches **at least seven** handwriting datasets, of which the
+paper names two. None of these need to have been used for a reported
+result, but `DATA_CARD.md` should say which were and which were not.
+
+Separately, the committed PaliGemma adapter records
+`"peft_version": "0.19.1"`, while `requirements.txt` pins `peft==0.18.1`.
+A committed artifact already disagrees with the pinned environment. This is
+minor next to A1, and it is the kind of thing
+`scripts/capture_environment.sh` exists to catch.
+
+### C18. Phase-1 training evidence exists, and corrects Table IV three times
+
+`report/antigravity_experiments/logs/bangla_adapt_Qwen2.5-1.5B-Instruct_history.json`
+is the HuggingFace log history for Phase 1. The filename is exactly the
+`run_name` that `bhasha/llm/train.py` constructs, so this is that run.
+`docs/TRACEABILITY.md` marked the Phase-1 rows `CHECK`; they can now be
+resolved.
+
+| Table IV, Phase 1 | Paper | Recovered log |
+| --- | --- | --- |
+| Steps | 500 | **410** |
+| Final loss | 1.31, labelled *(train)* | train **1.3405**; **eval 1.3139** |
+| Epochs | 0.8 | **0.985** |
+
+Three corrections:
+
+1. **The run stopped at 410 optimiser steps**, not 500.
+2. **1.31 is the validation loss, not the training loss.** The final
+   evaluation loss is 1.3139, which rounds to 1.31; the final training
+   loss is 1.3405, which rounds to 1.34. Table IV's "Final loss" column
+   labels the Phase-1 entry `(train)`. The number is right and the label
+   is wrong.
+3. **Epoch coverage was 0.985, essentially one full epoch**, not 0.8. The
+   trailing summary entry records `"epoch": 1.0` and
+   `"train_runtime": 582.44` seconds — under ten minutes, against
+   Table IV's "3h05".
+
+**This also resolves B2.** That entry could not reconcile 2,578 sequences
+with a 5.28M-token training split, and computed 0.19 epochs from the
+latter. The log settles it in favour of the smaller figure:
+`train_samples_per_second` 2.859 × 582.44 s ≈ **1,665 sequences**, and
+410 steps × effective batch 4 = 1,640 — one epoch, as logged. At 512
+tokens per packed sequence that is roughly **0.85M tokens**, not the
+5.28M Table IV gives for the training split.
+
+That is independently consistent with C8, where the committed corpus
+archive turned out to be far smaller than 6.6M tokens. Two separate lines
+of evidence now point at the same conclusion: **the corpus is roughly an
+order of magnitude smaller than Table IV states.**
+
+`scripts/recover_committed_evidence.py` converts this history into
+`logs/phase1_summary.json` in the schema `bhasha/utils/run_summary.py`
+writes, so the Phase-1 row finally has an evidence file.
+
+Phases 2 and 3 have no equivalent log. `report/training_metrics.csv`
+matches neither (C16).
+
+### C19. A third OCR model is committed and never mentioned
+
+`training/vlm_ocr/` contains a complete, trained
+**PaliGemma-2 3B (448px)** LoRA adapter — `final_adapter/adapter_model.safetensors`,
+`checkpoint-576`, a processor, a dataset report, and 88 scored test
+predictions. PaliGemma appears nowhere in the manuscript. The paper's OCR
+model is `swapnillo/Bangla-OCR-SFT`, a Qwen3-VL-style architecture.
+
+This is the **only OCR model in the repository with committed weights and
+committed predictions**, which puts it in an odd position: the best-evidenced
+OCR work in the artifact is work the paper does not describe.
+
+It is also trained on a fourth dataset. `training/vlm_ocr/data_desktop/`
+holds `bnaf_lines`, `dataset10thMay_lines`, `image_787_927_lines` and
+`merged_lines` — line-level splits from `/home/benaaf/Desktop/datasets/`,
+which is plausibly the self-collected material of Section IV-B but is
+never connected to it in writing.
+
+Nothing is removed. Either describe this work in the paper, or state in
+`DATA_CARD.md` that it is exploratory and separate from the reported
+results, as was done for the retrieval stack in C5.
+
+### C20. A results file is committed empty
+
+`report/antigravity_experiments/all_results_raw.json` is **0 bytes**. A
+file named `all_results_raw.json` that contains nothing reads, to anyone
+auditing the repository, as results that were meant to be there and are
+not. Either populate it or remove it.
+
+`merged_ocr_llm_app/outputs/` (C9) is a milder version of the same
+problem: its two reports record `"images_tested": 1` with
+`"ocr_exact_match": 0` and `"llm_exact_match": 0`. One image, no matches.
+
 ### C17. The OCR-correction prompt contains its own answer
 
 The prompt sent to every model for the OCR-Fix task, verbatim from
@@ -734,7 +1283,7 @@ error reduction says otherwise:
 | Mistral-7B | 0.00 | 0.80 | **−9.86** |
 | bn_rag_8B | 1.00 | 0.22 | **−46.4** |
 
-\* see A00 — this was probably the 3B model.
+\* see A7 — this was probably the 3B model.
 
 A negative net error reduction means the output is further from the
 reference than the input was: the model copied the expected string *and*

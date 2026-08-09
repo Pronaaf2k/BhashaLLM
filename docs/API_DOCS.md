@@ -1,18 +1,98 @@
 # BhashaLLM API Documentation
 
-FastAPI backend for Bengali Handwriting Recognition using your trained OCR model.
+The server exposes **two** surfaces. Everything below the "Legacy
+endpoints" heading is the original application; the `/api/v1` surface is
+the pipeline the paper describes.
+
+| Prefix | What it is | In the paper? |
+| --- | --- | --- |
+| `/api/v1/*` | Base model + one resident QLoRA adapter. Local, no network calls. | Yes — Sec. III-F |
+| `/ui` | Optional single-page frontend, opt-in via `BHASHA_ENABLE_UI=1`. | Yes — Sec. III-F |
+| `/api/analyze`, `/api/chat`, `/api/philosophical` | ResNet-34 grapheme classifier + Gemini cloud calls. | No — see `ERRATA.md` C3 |
+
+> **On the base URL below.** The original document documents a
+> `your-app-name.onrender.com` deployment. Render is a cloud host, and
+> Sections III-F and VI-F build an argument on the system running locally
+> and offline — "without depending on cloud APIs or continuous network
+> access". Together with the Gemini calls (C3) and the retrieval stack
+> (C5), this is the third artifact in the repository that assumes network
+> access. The local base URL is `http://localhost:5000`. Recorded in
+> `ERRATA.md` C26.
 
 ## Base URL
 
 ```
-https://your-app-name.onrender.com
+http://localhost:5000              # python main.py
+https://your-app-name.onrender.com # if deployed to a cloud host
 ```
 
 ## Interactive API Documentation
 
-FastAPI provides automatic interactive documentation:
-- **Swagger UI**: `https://your-app-name.onrender.com/docs`
-- **ReDoc**: `https://your-app-name.onrender.com/redoc`
+FastAPI provides automatic interactive documentation at `/docs` (Swagger
+UI) and `/redoc`.
+
+---
+
+## `/api/v1` — the paper's pipeline
+
+All local. Decoding defaults are Section IV-C's fixed settings
+(temperature 0.7, top-p 0.9, repetition penalty 1.1, 256 new tokens for
+text; greedy with 128 tokens for OCR).
+
+### `GET /api/v1/status`
+
+Resident models, active adapter, VRAM, and which adapters are present on
+disk. `vram_allocated_gb` should not grow across adapter swaps — that is
+the evidence for the residency claim in Sec. III-F.
+
+### `POST /api/v1/generate`
+
+```json
+{"prompt": "বাংলা সাহিত্যের ইতিহাস সম্পর্কে লিখুন।",
+ "adapter": "bangla", "max_new_tokens": 256, "return_logprobs": false}
+```
+
+`adapter` is `bangla`, `grading`, `ocr`, or `null` for the bare base
+model. `return_logprobs` emits the per-token log-probabilities that
+`eval/confidence.py` turns into the Table VII confidence score.
+
+### `POST /api/v1/grade`
+
+```json
+{"question": "রবীন্দ্রনাথ ঠাকুর কে ছিলেন?",
+ "reference_answer": "তিনি একজন বাঙালি কবি ও সাহিত্যিক।",
+ "student_answer": "তিনি একজন লেখক।"}
+```
+
+Loads the grading adapter and applies ChatML automatically. The prompt is
+Bangla-only, per Sec. IV-C.
+
+### `POST /api/v1/ocr`
+
+Multipart upload, field `image`. Query parameters:
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `image_size` | 256 | Square edge. Matches training preprocessing. |
+| `return_confidence` | true | Computes `eval/confidence.py`'s definition. |
+| `use_adapter` | true | `false` gives Table VII's **"Before"** baseline. |
+
+### `POST /api/v1/adapter`
+
+```json
+{"adapter": "grading"}
+```
+
+Swaps the resident adapter explicitly and returns the VRAM before and
+after. `null` unloads everything.
+
+---
+
+## Legacy endpoints
+
+These are the original application and are **not** part of the paper's
+methodology. `/api/chat` and `/api/philosophical` call the Gemini cloud
+API and require `GEMINI_API_KEY`.
 
 ## Endpoints
 

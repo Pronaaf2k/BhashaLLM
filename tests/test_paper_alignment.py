@@ -879,7 +879,7 @@ def test_every_record_is_stamped_with_the_real_provenance(convert):
 
 
 def test_llama32_tag_mismatch_is_flagged(convert):
-    """The finding the whole of ERRATA A00 rests on."""
+    """The finding the whole of ERRATA A7 rests on."""
     info = convert.OLLAMA_TAGS["Llama_3.2_11B"]
     assert info["tag"] == "llama3.2:latest"
     assert info["mismatch"] is True
@@ -901,11 +901,464 @@ def test_registry_records_the_benchmark_execution():
 
     llama = next(m for m in reg["models"] if "Llama-3.2-11B" in m["model_id"])
     assert llama["ollama_tag"] == "llama3.2:latest"
-    assert "A00" in llama["notes"]
+    assert "A7" in llama["notes"]
 
     # Llama-3-8B has Table V and VI scores but was never run.
     l3 = next(m for m in reg["models"] if "Meta-Llama-3-8B" in m["model_id"])
     assert l3["quantisation"] == "NOT RUN"
+
+
+# --------------------------------------------- recovered committed evidence
+
+
+@pytest.fixture(scope="module")
+def recover():
+    return _load("recover_committed_evidence_mod",
+                 "scripts/recover_committed_evidence.py")
+
+
+def test_phase1_history_is_present_and_recoverable(recover):
+    """The Phase-1 log was in report/antigravity_experiments/ all along;
+    docs/TRACEABILITY.md had the row marked CHECK."""
+    rec = recover.recover_phase1()
+    if rec is None:
+        pytest.skip("Phase-1 history not present")
+    assert rec["phase"] == "1_bangla_pt"
+    assert rec["steps"] > 0
+    assert rec["final_train_loss"] is not None
+    assert rec["final_eval_loss"] is not None
+
+
+def test_recovered_phase1_contradicts_table_iv(recover):
+    """Four disagreements, each of which the log settles (ERRATA C18)."""
+    rec = recover.recover_phase1()
+    if rec is None:
+        pytest.skip("Phase-1 history not present")
+
+    assert rec["steps"] == 410                       # Table IV says 500
+    assert rec["epochs_covered"] == pytest.approx(0.985, abs=0.01)  # says 0.8
+
+    # 1.31 is the EVAL loss. Table IV labels it (train).
+    assert rec["final_eval_loss"] == pytest.approx(1.31, abs=0.01)
+    assert rec["final_train_loss"] == pytest.approx(1.34, abs=0.01)
+    assert abs(rec["final_train_loss"] - 1.31) > 0.02
+
+    # Under ten minutes, against Table IV's 3h05.
+    assert rec["wall_clock_s"] < 700
+
+    diffs = recover.compare_phase1(rec)
+    assert len(diffs) >= 4
+    joined = " ".join(diffs)
+    assert "410" in joined and "EVAL" in joined
+
+
+def test_recovered_token_count_agrees_with_the_corpus_audit(recover):
+    """Two independent lines of evidence for the same conclusion: the corpus
+    is roughly an order of magnitude smaller than Table IV states."""
+    rec = recover.recover_phase1()
+    if rec is None or not rec.get("estimated_train_tokens"):
+        pytest.skip("Phase-1 history not present")
+    # Table IV gives 5.28M tokens for the Phase-1 training split.
+    assert rec["estimated_train_tokens"] < 2_000_000
+    # And the sequence count reconciles with steps x effective batch.
+    assert abs(rec["n_train_sequences"] - rec["steps"] * 4) < 100
+
+
+def test_committed_ocr_predictions_do_not_support_table_vii(recover):
+    """The only committed OCR predictions score far from 12% CER.
+
+    They are from PaliGemma, which is not the paper's model (ERRATA C19),
+    so this is not a refutation on its own — it is recorded because it is
+    the only measured OCR number the artifact contains.
+    """
+    pali = recover.recover_paligemma()
+    if pali is None:
+        pytest.skip("PaliGemma predictions not present")
+    o = pali["overall"]
+    assert o["n_items"] == 88
+    assert o["cer"] > 0.4, "expected the measured CER to be far above 12%"
+    assert o["char_accuracy"] == pytest.approx(1 - o["cer"], abs=1e-6)
+
+
+def test_paper_constants_used_by_the_recovery_script(recover):
+    assert recover.PAPER_PHASE1["steps"] == 500
+    assert recover.PAPER_PHASE1["final_loss"] == 1.31
+    assert recover.PAPER_PHASE1["final_loss_label"] == "train"
+    assert recover.PAPER_TABLE_VII["cer_after"] == 0.12
+
+
+# ------------------------------------------------ dataset path portability
+
+
+@pytest.fixture(scope="module")
+def relocate():
+    return _load("relocate_dataset_paths_mod", "scripts/relocate_dataset_paths.py")
+
+
+def test_strip_root_makes_the_authors_paths_relative(relocate):
+    assert relocate.strip_root(
+        "/home/benaaf/Desktop/datasets/bnaf/img12line3.png"
+    ) == "bnaf/img12line3.png"
+    # An unknown absolute root keeps enough to locate the file under a
+    # user-supplied root, rather than being dropped.
+    assert relocate.strip_root("/some/other/root/dir/img.png") == "dir/img.png"
+    # Already relative: untouched.
+    assert relocate.strip_root("bnaf/img.png") == "bnaf/img.png"
+    assert relocate.strip_root(
+        "C:\\Users\\x\\datasets\\d\\img.png") == "d/img.png"
+
+
+def test_committed_splits_are_not_portable(relocate):
+    """Every record stores an absolute path from one laptop (ERRATA C21)."""
+    src = ROOT / "training/vlm_ocr/data_desktop"
+    if not src.exists():
+        pytest.skip("data_desktop not present")
+    a = relocate.analyse(src)
+    assert a["n_records"] > 0
+    assert a["n_absolute_paths"] == a["n_records"], \
+        "expected every record to carry an absolute path"
+    assert a["portable"] is False
+    assert a["has_writer_id"] is False
+
+
+def test_committed_split_shape_contradicts_section_iv_c(relocate):
+    """1,701 lines split 90/5/5, not 1,500 pages split 1,050/150/300."""
+    src = ROOT / "training/vlm_ocr/data_desktop"
+    if not src.exists():
+        pytest.skip("data_desktop not present")
+    a = relocate.analyse(src)
+    merged = a["splits"].get("merged_lines")
+    assert merged, "merged_lines split missing"
+    assert merged["train"] != relocate.PAPER_SPLIT["train"]
+    assert merged["test"] != relocate.PAPER_SPLIT["test"]
+
+    findings = relocate.compare_to_paper(a)
+    joined = " ".join(findings).lower()
+    assert "absolute path" in joined
+    assert "lines, not pages" in joined
+    assert "writer_id" in joined
+    assert len(findings) >= 4
+
+
+def test_rewrite_is_non_destructive_and_preserves_provenance(relocate, tmp_path):
+    src = tmp_path / "src" / "group"
+    src.mkdir(parents=True)
+    (src / "train.jsonl").write_text(
+        json.dumps({"image": "/home/benaaf/Desktop/datasets/bnaf/i1.png",
+                    "text": "বাংলা"}, ensure_ascii=False) + "\n",
+        encoding="utf-8")
+    before = (src / "train.jsonl").read_text(encoding="utf-8")
+
+    out = tmp_path / "out"
+    res = relocate.rewrite(tmp_path / "src", out, dry_run=False)
+    assert res["paths_rewritten"] == 1
+
+    # The original is untouched: those absolute paths are the only record
+    # of the collection folder layout.
+    assert (src / "train.jsonl").read_text(encoding="utf-8") == before
+
+    rec = json.loads((out / "group" / "train.jsonl").read_text(
+        encoding="utf-8").strip())
+    assert rec["image"] == "bnaf/i1.png"
+    assert rec["collection_dir"] == "bnaf"      # provenance kept
+    assert rec["text"] == "বাংলা"
+
+    # The sidecar can reconstruct the original path.
+    mapping = json.loads((out / "group" / "train.pathmap.json").read_text(
+        encoding="utf-8"))
+    assert mapping["bnaf/i1.png"].startswith("/home/benaaf/")
+
+
+def test_dry_run_writes_nothing(relocate, tmp_path):
+    src = tmp_path / "src" / "g"
+    src.mkdir(parents=True)
+    (src / "train.jsonl").write_text(
+        json.dumps({"image": "/home/benaaf/Desktop/datasets/a/i.png"}) + "\n",
+        encoding="utf-8")
+    out = tmp_path / "out"
+    relocate.rewrite(tmp_path / "src", out, dry_run=True)
+    assert not out.exists()
+
+
+# ------------------------------------------------- phase 2 training data
+
+
+def test_phase2_config_points_at_grading_data_not_the_kaggle_file():
+    """configs/phase2 names the 400/100/50 grading split of Sec. IV-C.
+
+    train_instruct.py uses those files when present and falls back to the
+    Kaggle instruction file with a warning when they are not, so the
+    correct path exists even though the data does not (ERRATA A8).
+    """
+    pytest.importorskip("yaml")
+    from bhasha.config import PhaseConfig
+
+    cfg = PhaseConfig.load(ROOT / "configs/phase2_grading_sft.yaml")
+    assert "grading" in str(cfg.data.get("train"))
+    assert "grading" in str(cfg.data.get("validation"))
+    assert cfg.data.get("heldout"), "the 50 untouched pairs must be named"
+
+
+def test_kaggle_instruction_builder_produces_no_grading_task():
+    """Sec. IV-C describes 'instruction-grading pairs'. The builder makes
+    spelling, morphology, vocabulary and proofreading pairs instead."""
+    src = (ROOT / "bhasha/llm/prepare_kaggle_data.py").read_text(
+        encoding="utf-8")
+    # The four tasks it does build.
+    assert "ভুল বানানের শব্দটি শুদ্ধ" in src        # spelling
+    assert "আক্ষরিক" in src and "রূপক" in src        # literal vs metaphorical
+    assert "সঠিক বাংলা শব্দ" in src                  # vocabulary
+    # And the shape it does not: no student answer, no reference answer.
+    assert "শিক্ষার্থীর উত্তর" not in src
+    assert "আদর্শ উত্তর" not in src
+
+
+def test_proofreading_task_has_a_constant_answer():
+    """The generated answer is 'the sentence is correct' for every input,
+    because the sentences are never corrupted (ERRATA A8, item 4)."""
+    src = (ROOT / "bhasha/llm/prepare_kaggle_data.py").read_text(
+        encoding="utf-8")
+    assert 'a = f"বাক্যটি সঠিক আছে:' in src
+    # The question asks for a correction, so question and answer disagree.
+    assert "ভুল থাকলে সংশোধন করুন" in src
+
+
+def test_no_grading_dataset_is_committed():
+    """If this ever fails, ERRATA A8 can be downgraded."""
+    for name in ("train", "val", "test"):
+        assert not (ROOT / "data" / "grading" / f"{name}.jsonl").exists(), \
+            f"data/grading/{name}.jsonl now exists; update ERRATA A8"
+
+
+# -------------------------------------------------------- step counts
+
+
+def test_checkpoints_show_all_three_phases_ran_short(recover):
+    """Table IV gives 500 / 500 / 2,000. The checkpoints give 417/135/675."""
+    steps = recover.checkpoint_steps()
+    if not steps:
+        pytest.skip("docs/MODELS_SUMMARY.md not present")
+    assert len(steps) == 3
+    last = {label.split()[1]: n for label, n, _ in steps}
+    assert last["1"] == 417
+    assert last["2"] == 135
+    assert last["3"] == 675
+    for _, actual, claimed in steps:
+        assert actual < claimed, "expected every phase to fall short"
+
+
+def test_phase1_checkpoint_and_log_agree(recover):
+    """Two independent sources. This agreement is what makes the other two
+    checkpoint rows credible."""
+    steps = recover.checkpoint_steps()
+    rec = recover.recover_phase1()
+    if not steps or rec is None:
+        pytest.skip("evidence not present")
+    # The log's last logged step is 410 (logging_steps=10); the final save
+    # is 417. They describe the same run ending in the same place.
+    assert abs(steps[0][1] - rec["steps"]) <= 10
+
+
+def test_legacy_diagnostics_are_excluded_from_collection():
+    """pytest used to error during collection on files that are not tests."""
+    conftest = (ROOT / "tests" / "conftest.py").read_text(encoding="utf-8")
+    for name in ("test_ocr_lang.py", "test_ocr_libs.py", "test_eval.py",
+                 "test_write.py", "test_download_ocr.py",
+                 "test_models.py", "test_image_processing.py"):
+        assert name in conftest, f"{name} not excluded"
+    # And none of them was deleted.
+    for name in ("test_ocr_lang.py", "test_eval.py", "test_write.py"):
+        assert (ROOT / "tests" / name).exists(), f"{name} was removed"
+
+
+# ----------------------------------------------------------- packaging
+
+
+def _setup_namespace():
+    src = (ROOT / "setup.py").read_text(encoding="utf-8")
+    ns = {}
+    exec(compile(src.split("setup(")[0], "setup.py", "exec"), ns)  # noqa: S102
+    return ns
+
+
+def test_setup_declares_what_the_code_imports_at_runtime():
+    """PyYAML absent means Table III cannot be read at all (ERRATA C26)."""
+    req = {p.lower().replace("-", "_") for p in _setup_namespace()["INSTALL_REQUIRES"]}
+    for pkg in ("pyyaml", "trl", "python_multipart", "sacrebleu",
+                "transformers", "peft", "torch", "fastapi"):
+        assert pkg in req, f"{pkg} missing from install_requires"
+
+
+def test_setup_matches_requirements_txt():
+    ns = _setup_namespace()
+    declared = {p.lower().replace("-", "_") for p in ns["INSTALL_REQUIRES"]}
+    req = {
+        l.split("==")[0].split(">=")[0].strip().lower().replace("-", "_")
+        for l in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+        if l.strip() and not l.startswith("#")
+    }
+    assert not (req - declared), f"in requirements.txt but not setup.py: {req - declared}"
+
+
+def test_optional_groups_hold_the_non_pipeline_packages():
+    """PaddleOCR and the Gemini client were mandatory; neither is in the
+    paper's methodology (ERRATA group C, C3)."""
+    ns = _setup_namespace()
+    core = {p.lower() for p in ns["INSTALL_REQUIRES"]}
+    extras = ns["EXTRAS_REQUIRE"]
+    assert "paddleocr" not in core
+    assert "google-generativeai" not in core
+    assert "paddleocr" in extras["paddle"]
+    assert "google-generativeai" in extras["legacy-api"]
+
+
+def test_package_data_ships_the_frontend_and_manifest_ships_the_configs():
+    """Neither is a Python module, so find_packages() does not carry them."""
+    src = (ROOT / "setup.py").read_text(encoding="utf-8")
+    assert "package_data" in src
+    assert "app/static/*.html" in src
+
+    manifest = ROOT / "MANIFEST.in"
+    assert manifest.exists(), "MANIFEST.in missing"
+    text = manifest.read_text(encoding="utf-8")
+    assert "configs *.yaml" in text
+    assert "bhasha/app/static *.html" in text
+    # Weights and data must never ship.
+    for pruned in ("prune models", "prune data"):
+        assert pruned in text
+
+
+def test_api_docs_cover_both_surfaces():
+    """API_DOCS documented only the legacy endpoints (ERRATA C27)."""
+    docs = (ROOT / "docs/API_DOCS.md").read_text(encoding="utf-8")
+    for endpoint in ("/api/v1/status", "/api/v1/generate", "/api/v1/grade",
+                     "/api/v1/ocr", "/api/v1/adapter", "/ui"):
+        assert endpoint in docs, f"{endpoint} undocumented"
+    # And it must say which surface is the paper's.
+    assert "localhost:5000" in docs
+    assert "not part of the paper" in docs.lower() or "No — see" in docs
+
+
+# -------------------------------------------------- errata self-integrity
+
+
+def _errata():
+    return (ROOT / "docs/ERRATA.md").read_text(encoding="utf-8")
+
+
+def _strip_retired_ids_note(text):
+    """Blank out the block that deliberately quotes the retired A0x ids.
+
+    Lines are replaced rather than removed so reported line numbers still
+    match the file on disk.
+    """
+    import re
+    return re.sub(
+        r"<!-- retired-ids-note:start -->.*?<!-- retired-ids-note:end -->",
+        lambda m: "\n" * m.group(0).count("\n"),
+        text, flags=re.S)
+
+
+def test_errata_ids_are_unique_and_unambiguous():
+    """A0/A00/A01/A02/A03 collided visually with A1/A2/A3. Group A now runs
+    1-10 with no leading zeros."""
+    import re
+    ids = re.findall(r"^#{2,3}\s+([ABC]\d+)\.", _errata(), re.M)
+    assert len(ids) == len(set(ids)), "duplicate errata ids"
+    a = sorted(int(i[1:]) for i in ids if i.startswith("A"))
+    assert a == list(range(1, 11)), f"Group A is not 1..10: {a}"
+    # No leading-zero identifiers anywhere.
+    assert not re.search(r"^#{2,3}\s+A0\d", _errata(), re.M)
+
+
+def test_every_errata_cross_reference_resolves():
+    """A living document that points at entries which do not exist is worse
+    than one that points at nothing.
+
+    The first version of this test matched only `§Axx` and
+    `ERRATA.md Axx`, which is exactly the pattern the renaming script
+    matched — so the test validated the fix's own blind spot and passed
+    while twelve stale references survived in prose ("after A0", "unlike
+    A00", "(A02)"), in markdown link labels (`[A0](#a10-...)`), and behind
+    backticks (`` `docs/ERRATA.md` A00 ``). It now scans for bare
+    identifiers everywhere and subtracts the deliberate mentions.
+    """
+    import re
+    t = _errata()
+    defined = set(re.findall(r"^#{2,3}\s+([ABC]\d+)\.", t, re.M))
+
+    # Every A/B/C identifier appearing anywhere, in any syntax.
+    refs = set(re.findall(r"(?<![A-Za-z0-9])([ABC]\d{1,2})(?![A-Za-z0-9])", t))
+
+    # The mapping note deliberately quotes the retired identifiers. It is
+    # fenced by an HTML comment so the exemption is a property of the
+    # document rather than a guess about which words appear on which line —
+    # the note spans several lines, which is what the first attempt at this
+    # exemption got wrong.
+    body = _strip_retired_ids_note(t)
+    refs = set(re.findall(r"(?<![A-Za-z0-9])([ABC]\d{1,2})(?![A-Za-z0-9])", body))
+
+    dangling = sorted(refs - defined)
+    assert not dangling, (
+        f"references to entries that do not exist: {dangling}. "
+        f"Defined: {sorted(defined)}"
+    )
+
+
+def test_no_retired_identifier_survives_outside_the_mapping_note():
+    """The A0/A00/A01/A02/A03 scheme is retired. It may appear only where
+    the document explains the renaming, and in this test file."""
+    import re
+    for name in ("docs/ERRATA.md", "docs/TRACEABILITY.md", "README.md",
+                 "DATA_CARD.md", "docs/API_DOCS.md",
+                 "benchmarks/model_registry.json",
+                 "scripts/convert_llm_outputs.py",
+                 "scripts/recover_committed_evidence.py",
+                 "scripts/relocate_dataset_paths.py"):
+        p = ROOT / name
+        if not p.exists():
+            continue
+        text = _strip_retired_ids_note(p.read_text(encoding="utf-8"))
+        for i, line in enumerate(text.splitlines(), 1):
+            hits = re.findall(r"(?<![A-Za-z0-9])(A0\d?)(?![A-Za-z0-9])", line)
+            assert not hits, f"{name}:{i} still cites retired {hits}: {line.strip()[:90]}"
+
+
+def test_errata_internal_anchors_resolve():
+    import re
+    t = _errata()
+
+    def slug(h):
+        s = re.sub(r"[^\w\s-]", "", h.lower())
+        return re.sub(r"\s+", "-", s.strip())
+
+    heads = {slug(m.group(1)) for m in re.finditer(r"^#{2,3}\s+(.+?)\s*$", t, re.M)}
+    bad = [a for a in re.findall(r"\]\(#([a-z0-9\-]+)\)", t) if a not in heads]
+    assert not bad, f"broken anchors: {bad}"
+
+
+def test_other_docs_do_not_cite_missing_errata_entries():
+    import re
+    defined = set(re.findall(r"^#{2,3}\s+([ABC]\d+)\.", _errata(), re.M))
+    for name in ("README.md", "docs/TRACEABILITY.md", "DATA_CARD.md",
+                 "docs/API_DOCS.md", "tests/README.md", "benchmarks/README.md"):
+        p = ROOT / name
+        if not p.exists():
+            continue
+        text = p.read_text(encoding="utf-8")
+        refs = set(re.findall(r"§([ABC]\d+)", text))
+        refs |= set(re.findall(r"ERRATA(?:\.md)?[ .]+([ABC]\d+)", text))
+        dangling = sorted(refs - defined)
+        assert not dangling, f"{name} cites missing entries: {dangling}"
+
+
+def test_start_here_table_lists_the_five_severe_entries():
+    t = _errata()
+    assert "## Start here" in t
+    for entry in ("**A6**", "**A7**", "**A8**", "**A9**", "**A10**"):
+        assert entry in t, f"{entry} missing from the severity index"
+    # And the old-id mapping is documented for anyone holding a stale ref.
+    assert "A01→A6" in t or "A01→A6" in t
 
 
 def test_model_registry_covers_the_nine_benchmarked_models():

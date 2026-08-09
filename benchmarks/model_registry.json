@@ -162,7 +162,7 @@
       "vram_gb": null,
       "role": "primary generation and translation model (Sec. III-B); 14/15 on the human rubric",
       "served_on": "see llm outputs/*.md; exact date not recorded",
-      "notes": "CRITICAL: `llama3.2:latest` resolves to llama3.2:3b (3.21B params, ~2.0 GB), NOT the 11B vision model. The generations in llm outputs/Llama_3.2_11B.md were very probably produced by a 3B model. This is the model the paper's central conclusion rests on. See docs/ERRATA.md A00.  ||  IMPORTANT: evaluated by quantised INFERENCE only. No QLoRA fine-tuning of this model was performed -- see docs/ERRATA.md B1. Table II's 'used here' row and the 9.4 GB peak are a feasibility analysis, not a record of a run.",
+      "notes": "CRITICAL: `llama3.2:latest` resolves to llama3.2:3b (3.21B params, ~2.0 GB), NOT the 11B vision model. The generations in llm outputs/Llama_3.2_11B.md were very probably produced by a 3B model. This is the model the paper's central conclusion rests on. See docs/ERRATA.md A7.  ||  IMPORTANT: evaluated by quantised INFERENCE only. No QLoRA fine-tuning of this model was performed -- see docs/ERRATA.md B1. Table II's 'used here' row and the 9.4 GB peak are a feasibility analysis, not a record of a run.",
       "ollama_tag": "llama3.2:latest"
     },
     {
